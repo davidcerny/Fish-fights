@@ -520,6 +520,8 @@ product, and whether it matches the observed winner. Run a binomial test on the 
 
 ```{r}
 both_group <- both4[both4$Group.A != both4$Group.B,]
+# Number of data points:
+nrow(both_group)
 
 # Clean-up: drop rows containing NAs:
 both_group <- both_group[complete.cases(both_group),]
