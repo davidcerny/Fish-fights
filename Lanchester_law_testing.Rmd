@@ -1,0 +1,1114 @@
+---
+title: "Testing Lanchester's laws in coral reef fish"
+author: "David Cerny"
+date: "1/28/2018"
+output: html_document
+---
+
+# Data preparation
+
+Read in the data spreadsheets:
+
+```{r}
+sheet <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/LiveFishInteraction_Feb9.csv", sep = ",", strip.white = TRUE)
+scored <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/ScoredFishInteraction_Feb19.csv", sep = ",", strip.white = TRUE)
+
+# Combining the two is easier when dealing with the relevant columns alone. These are:
+# Species.A, Species.B, Group.A, Group.B, and Winner.
+ABwin_live <- sheet[,c(4,6,8,9,10)]
+ABwin_scored <- scored[,c(10,12,13,15,16)]
+both <- rbind(ABwin_live, ABwin_scored)
+
+# Create new versions of the three data frames that include one-on-one interactions only:
+sheet_oneonone <- sheet[sheet$Group.A == 1 & sheet$Group.B == 1,]
+scored_oneonone <- scored[scored$Group.A == 1 & scored$Group.B == 1,]
+both_oneonone <- both[both$Group.A == 1 & both$Group.B == 1,]
+```
+
+### Clean-up
+
+Step 1. Unidentified species are marked with an asterisk. Exclude them from the matrix based on this criterion:
+
+```{r}
+drop_ufos <- function(df) {
+  # Dummy vector for storing the numbers of the rows with unidentifiable species:
+  tobedropped <- vector()
+  for (i in 1:nrow(df)) {
+    if (grepl("*", df$Species.A[i], fixed = TRUE) == TRUE |
+        grepl("*", df$Species.B[i], fixed = TRUE) == TRUE |
+        grepl("*", df$Winner[i], fixed = TRUE) == TRUE) {
+      tobedropped <- c(tobedropped, i)
+    }
+  }
+  return(df[-c(tobedropped),])
+}
+
+sheet2 <- drop_ufos(sheet)
+scored2 <- drop_ufos(scored)
+both2 <- drop_ufos(both)
+sheet_ooo2 <- drop_ufos(sheet_oneonone)
+scored_ooo2 <- drop_ufos(scored_oneonone)
+both_ooo2 <- drop_ufos(both_oneonone)
+```
+
+Step 2. Remove intraspecific interactions (a few of these were scored for live observations in the beginning, before it was decided to selectively focus on interspecific interactions only):
+
+```{r}
+drop_intra <- function(df) {
+  tobedropped <- vector()
+  for (i in 1:nrow(df)) {
+    if (identical(as.character(df$Species.A[i]), as.character(df$Species.B[i])) == TRUE) {       tobedropped <- c(tobedropped, i) 
+    }
+  }
+  if (length(tobedropped) > 0) {
+    return(df[-c(tobedropped),])
+  } else {
+    return(df)
+  }
+}
+
+sheet3 <- drop_intra(sheet2)
+scored3 <- drop_intra(scored2)
+both3 <- drop_intra(both2)
+sheet_ooo3 <- drop_intra(sheet_ooo2)
+scored_ooo3 <- drop_intra(scored_ooo2)
+both_ooo3 <- drop_intra(both_ooo2)
+```
+
+Step 3. Drop "Striated Surgeonfish" from the matrices, as this is likely a composite category comprising both striated and brown surgeonfish. These species may have different dominance ranks, but are almost indistinguishable in appearance.
+
+```{r}
+no_surgeon <- function(df) {
+  return(df[df$Species.A != "Striated Surgeonfish" & df$Species.B != "Striated Surgeonfish",])
+}
+
+sheet4 <- no_surgeon(sheet3)
+scored4 <- no_surgeon(scored3)
+both4 <- no_surgeon(both3)
+sheet_ooo4 <- no_surgeon(sheet_ooo3)
+scored_ooo4 <- no_surgeon(scored_ooo3)
+both_ooo4 <- no_surgeon(both_ooo3)
+```
+
+### Generating a dominance matrix
+
+Extract the levels of `Species.A` and `Species.B` and use them as the rows and columns of the dominance matrix:
+
+```{r}
+# The union of the species listed in the "Species A" and "Species B" columns will be used
+# as the rows and columns of a new matrix filled with zeros:
+emptymatrix <- function(df) {
+  species <- union(levels(factor(df$Species.A)), levels(factor(df$Species.B)))
+  rownum <- length(species)
+  newmatrix <- matrix(0, nrow = rownum, ncol = rownum)
+  row.names(newmatrix) <- species
+  colnames(newmatrix) <- species
+  return(newmatrix)
+}
+
+dommatrix <- emptymatrix(sheet4)
+scoredmatrix <- emptymatrix(scored4)
+bothmatrix <- emptymatrix(both4)
+domooo <- emptymatrix(sheet_ooo4)
+scoredooo <- emptymatrix(scored_ooo4)
+bothooo <- emptymatrix(both_ooo4)
+
+# If species A won over species B (winner = A), add 1 to the cell in column A and row B.
+# If species B won over species A (winner = B), add 1 to the cell in column B and row A.
+# An increment function will be used to increase the value of each cell accordingly:
+inc <- function(x) # credit: Grega Kešpret, Stack Overflow
+{
+ eval.parent(substitute(x <- x + 1))
+}
+
+# Now apply it to populate the matrix:
+populate <- function(sheet, df) {
+  for (i in 1:nrow(sheet)) {
+    spec_a <- as.character(sheet$Species.A[i])
+    spec_b <- as.character(sheet$Species.B[i])
+    winner <- as.character(sheet$Winner[i])
+    if (identical(spec_a, winner) == TRUE) {
+      inc(df[as.character(spec_b), as.character(spec_a)]) 
+    }
+    if (identical(spec_b, winner) == TRUE) { # This should be equivalent to "else"
+      inc(df[as.character(spec_a), as.character(spec_b)]) 
+    }
+  }
+  diag(df) <- NA
+  return(df)
+}
+
+dommatrix <- populate(sheet4, dommatrix)
+scoredmatrix <- populate(scored4, scoredmatrix)
+bothmatrix <- populate(both4, bothmatrix)
+domooo <- populate(sheet_ooo4, domooo)
+scoredooo <- populate(scored_ooo4, scoredooo)
+bothooo <- populate(both_ooo4, bothooo)
+```
+
+Convert from matrices to data frames for easier manipulation:
+
+```{r}
+convert_to_df <- function(df) {
+  frame <- as.data.frame(df, stringsAsFactors = FALSE)
+  for (i in 1:ncol(df)) {
+  frame[,i] <- as.numeric(frame[,i])
+  }
+  return(frame)
+}
+
+domall <- convert_to_df(dommatrix)
+scoredall <- convert_to_df(scoredmatrix)
+bothall <- convert_to_df(bothmatrix)
+liveoooall <- convert_to_df(domooo)
+scoredoooall <- convert_to_df(scoredooo)
+bothoooall <- convert_to_df(bothooo)
+```
+
+Exclude cornetfish, the only predator in the dataset. (Note: the fact that this is done here, at the matrix formatting stage rather than at the data clean-up stage, simply reflects the point at which the decision was taken during the actual analysis. Excluding a taxon from the matrix using the method below is equivalent to excluding it from the data sheet.)
+
+```{r}
+# Exclude a taxon from a matrix:
+exclude <- function(df, taxon) {
+  colrow <- c(which(row.names(df) == taxon), which(colnames(df) == taxon))
+  excluded <- df[-colrow[1], -colrow[2]]
+  return(excluded)
+}
+
+# Note: since there are no interactions involving cornetfish in the video-only data,
+# we only need to exclude it from the live-only and combined datasets.
+nocornet_domall <- exclude(domall, "Cornetfish")
+nocornet_bothall <- exclude(bothall, "Cornetfish")
+nocornet_live <- exclude(liveoooall, "Cornetfish")
+nocornet_both <- exclude(bothoooall, "Cornetfish")
+```
+
+### Matrix completeness:
+
+```{r}
+compl <- function(df) {
+  counter <- 0
+  for (i in 1:nrow(df)) {
+    for (j in 1:ncol(df)) {
+      if (!is.na(df[i,j]) & df[i,j] == 0 & df[j,i] == 0) {
+        counter <- counter + 1
+      }
+    }
+  }
+  return(100*(1 - (counter/(nrow(df)*(nrow(df) - 1)))))
+}
+paste("The completeness of the live-only all-species matrix is ", compl(nocornet_domall), "%", sep = ""); paste("The completeness of the video-only all-species matrix is ", compl(scoredall), "%", sep = ""); paste("The completeness of the combined all-species matrix is ", compl(nocornet_bothall), "%", sep = ""); paste("The completeness of the live-only one-on-one all-species matrix is ", compl(nocornet_live), "%", sep = ""); paste("The completeness of the video-only one-on-one all-species matrix is ", compl(scoredoooall), "%", sep = ""); paste("The completeness of the combined one-on-one all-species matrix is ", compl(nocornet_both), "%", sep = "")
+```
+
+### Landau's *h*-index:
+
+```{r, message=FALSE, warning=FALSE}
+library(gdata)
+library(compete)
+
+# To determine linearity, we need to make our dominance matrix symmetric. Below, we do
+# this by subtracting the lower triangle from the upper triangle, and flipping the results
+# around the diagonal:
+symmatrix <- function(df) {
+  # Going through the upper triangle column-wise corresponds to going through the lower 
+  # triangle row-wise:
+  triangle <- as.numeric(upperTriangle(df)) - as.numeric(lowerTriangle(df), byrow = TRUE)
+  # Replace the upper triangle in the default column-wise order:
+  symmat <- matrix(NA, nrow = nrow(df), ncol = ncol(df))
+  upperTriangle(symmat) <- triangle
+  # Replace the lower triangle in the row-wise order:
+  lowerTriangle(symmat, byrow = TRUE) <- triangle
+  return(symmat)
+}
+
+# Note that the p-values are simulation-based, and therefore stochastic: they will differ
+# slightly between runs
+devries(nocornet_domall, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(scoredall, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(nocornet_bothall, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(nocornet_live, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(scoredoooall, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(nocornet_both, Nperms = 10000, history = FALSE, plot = TRUE)
+```
+
+Uncomment the code below (and change the paths as needed) to print the matrices:
+
+```{r}
+# write.table(nocornet_domall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/live_only_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(scoredall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/video_only_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_bothall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/both_datasets_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_live, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/live_only_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(scoredoooall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/video_only_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_both, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/both_datasets_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
+```
+
+### CBI
+
+```{r}
+# Remember:
+# If A won over B, add 1 to [B,A] 
+# If A won over C, add 1 ro [C,A]
+# -> So the A column represents the species that A dominates (A wins)
+# If A lost to B, add 1 to [A,B]
+# If A lost to C, add 1 to [A,C]
+# -> So the A row represents the species that dominate A (A losses)
+# (B + b + 1)/(L + l + 1)
+cbi <- function(df, species) {
+  # number of entries in column B that are neither 0 nor NA:
+  B <- sum(df[,species] != 0, na.rm = TRUE)
+  # species corresponding to those entries:
+  dominates <- rownames(df)[which(df[,species] != 0)]
+  # number of entries in the columns corresponding to those species that are neither 0 nor NA:
+  if (length(dominates) > 0) {
+    b <- sum(subset(df, select = dominates) != 0, na.rm = TRUE)
+  } else {
+    b <- 0
+  }
+  # number of entries in row B that are neither 0 nor NA:
+  L <- sum(df[species,], na.rm = TRUE)
+  # species corresponding to those entries:
+  dominated <- colnames(df)[which(df[species,] != 0)]
+  # number of entries in the rows corresponding to those species that are neither 0 nor NA:
+  if (length(dominated) > 0) {
+    l <- sum(subset(df, rownames(df) %in% dominated) != 0, na.rm = TRUE)
+  } else {
+    l <- 0
+  }
+  return((B + b + 1)/(L + l + 1))
+}
+
+# Apply it to the full matrix:
+cbi_hierarchy <- function(df) {
+  cbi_matrix <- data.frame(matrix(NA, nrow = nrow(df), ncol = 2))
+  colnames(cbi_matrix) <- c("Species", "CBI")
+  for (i in 1:nrow(df)) {
+    cbi_matrix$Species[i] <- rownames(df)[i]
+    cbi_matrix$CBI[i] <- cbi(df, rownames(df)[i])
+  }
+  cbi_matrix <- cbi_matrix[order(cbi_matrix$CBI, decreasing = TRUE),]
+  return(cbi_matrix)
+}
+
+cbi_ncdomall <- cbi_hierarchy(nocornet_domall)
+cbi_scoredall <- cbi_hierarchy(scoredall)
+cbi_ncbothall <- cbi_hierarchy(nocornet_bothall)
+cbi_ncooolive <- cbi_hierarchy(nocornet_live)
+cbi_ooovideo <- cbi_hierarchy(scoredoooall)
+cbi_ncoooboth <- cbi_hierarchy(nocornet_both)
+```
+
+### Frequency of winning
+
+```{r}
+win_freq <- function(df) {
+  j <- 1
+  species <- union(levels(df$Species.A), levels(df$Species.B))
+  freq_table <- data.frame(matrix(NA, nrow = length(species), ncol = 2))
+  colnames(freq_table) <- c("Species", "WinFreq")
+  for(i in species) {
+    if (grepl("*", i, fixed = TRUE) == TRUE) {
+      next
+    } else {
+      freq_table[j,1] <- i
+      involved <- sum(df$Species.A == i) + sum(df$Species.B == i)
+      won <- sum(df$Winner == i)
+      freq_table[j,2] <- won/involved
+      j <- j + 1
+    }
+  }
+  return(freq_table[complete.cases(freq_table),])
+}
+```
+
+### Sizes
+
+Compare the sizes estimated from live observations with those reported by Randall (2005):
+
+```{r, comment='', message=F, warning=F}
+# Maximum attained sizes according to Randall (2005):
+sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/FishSize.csv", strip.white = TRUE, header = TRUE)
+colnames(sizes)[1] <- "Species"
+booksizes <- sizes$Attain[c(1:3,5:21,23:25)]
+
+# Distributions of sizes observed in the field:
+fishsize <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/FieldFishSize.csv", sep = ",", strip.white = TRUE)
+
+# Calculate the mean, median, and maximum of the observed size distributions:
+meansizes <- colMeans(fishsize[,c(2:4,6:25)], na.rm = TRUE)
+colMedians <- function(matrix) {
+  return(apply(matrix, 2, median, na.rm = TRUE))
+}
+colMax <- function(matrix) {
+  return(apply(matrix, 2, max, na.rm = TRUE))
+}
+mediansizes <- colMedians(fishsize[,c(2:4,6:25)])
+maxsizes <- colMax(fishsize[,c(2:4,6:25)])
+
+# Do book sizes correlate with live observation sizes?
+a <- cor.test(meansizes, mediansizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(a$estimate[[1]],5), ", p-value: ", a$p.value, sep = "")
+b <- cor.test(meansizes, maxsizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(b$estimate[[1]],5), ", p-value: ", b$p.value, sep = "")
+c <- cor.test(mediansizes, maxsizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(c$estimate[[1]],5), ", p-value: ", c$p.value, sep = "")
+d <- cor.test(meansizes, mediansizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(d$estimate[[1]],5), ", p-value: ", d$p.value, sep = "")
+e <- cor.test(meansizes, maxsizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(e$estimate[[1]],5), ", p-value: ", e$p.value, sep = "")
+f <- cor.test(mediansizes, maxsizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(f$estimate[[1]],5), ", p-value: ", f$p.value, sep = "")
+g <- cor.test(booksizes, mediansizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(g$estimate[[1]],5), ", p-value: ", g$p.value, sep = "")
+h <- cor.test(booksizes, meansizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(h$estimate[[1]],5), ", p-value: ", h$p.value, sep = "")
+i <- cor.test(booksizes, maxsizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(i$estimate[[1]],5), ", p-value: ", i$p.value, sep = "")
+j <- cor.test(booksizes, mediansizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(j$estimate[[1]],5), ", p-value: ", j$p.value, sep = "")
+k <- cor.test(booksizes, meansizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(k$estimate[[1]],5), ", p-value: ", k$p.value, sep = "")
+l <- cor.test(booksizes, maxsizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(l$estimate[[1]],5), ", p-value: ", l$p.value, sep = "")
+
+# Create a new data frame that associates each species with the median of its observed
+# size distribution, excluding Cornetfish and "Striated Surgeonfish":
+obs_sizes <- data.frame(matrix(ncol = 2, nrow = length(mediansizes)))
+colnames(obs_sizes) <- c("Species", "Size")
+obs_sizes[,1] <- as.character(sizes$Species[c(1:3,5:21,23:25)])
+obs_sizes[,2] <- as.numeric(mediansizes)
+```
+
+Include mass (scalled isometrically and allometrically) as an additional variable:
+
+```{r}
+mass <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/body_to_mass_data.csv", sep = ",", strip.white = TRUE)
+colnames(mass)[1] <- "Species"
+lengthmass <- merge(obs_sizes, mass, by = "Species")
+lengthmass[,5] <- lengthmass[,3]*(lengthmass[,2]^lengthmass[,4])
+lengthmass[,6] <- lengthmass[,5]^(2/3)
+colnames(lengthmass)[c(2,5,6)] <- c("Length", "Mass", "Mass2_3")
+```
+
+# Test of mass vs. individual fighting ability
+
+Test the relationship between the two measures of dominance (CBI and winning frequency) and body mass or body mass raised to 2/3 by creating a single data frame that contains all the four variables. Note: from this point on, we focus exclusively on the combined (live plus video) dataset of 23 species (no cornetfish) and one-on-one-interactions.
+
+```{r}
+both_test <- merge(cbi_ncoooboth, win_freq(both_ooo4[both_ooo4$Species.A != "Cornetfish" & both_ooo4$Species.B != "Cornetfish",]), by = "Species")
+both_test <- merge(both_test, lengthmass, by = "Species")
+# Number of interactions:
+nrow(both_ooo4[both_ooo4$Species.A != "Cornetfish" & both_ooo4$Species.B != "Cornetfish",])
+
+cbi_mass <- lm(both_test$CBI ~ both_test$Mass)
+summary(cbi_mass)$coefficients[2, 4]
+summary(cbi_mass)$r.squared
+
+winfreq_mass <- lm(both_test$WinFreq ~ both_test$Mass)
+summary(winfreq_mass)$coefficients[2, 4]
+summary(winfreq_mass)$r.squared
+
+cbi_mass2_3 <- lm(both_test$CBI ~ both_test$Mass2_3)
+summary(cbi_mass2_3)$coefficients[2, 4]
+summary(cbi_mass2_3)$r.squared
+
+winfreq_mass2_3 <- lm(both_test$WinFreq ~ both_test$Mass2_3)
+summary(winfreq_mass2_3)$coefficients[2, 4]
+summary(winfreq_mass2_3)$r.squared
+
+# How far is spotted porcupinefish from the median in terms of the interquartile range?
+# (Note: this is a simple measure of the extremeness of an outlier)
+(both_test$Mass[both_test$Species == "Spotted Porcupinefish"] - median(both_test$Mass))/IQR(both_test$Mass)
+(both_test$Mass2_3[both_test$Species == "Spotted Porcupinefish"] - median(both_test$Mass2_3))/IQR(both_test$Mass2_3)
+
+# Exclude spotted porcupinefish:
+nocornet_nosp_both <- exclude(nocornet_both, "Spotted Porcupinefish")
+cbi_ncoooboth_nosp <- cbi_hierarchy(nocornet_nosp_both)
+both_test_nosp <- merge(cbi_ncoooboth_nosp, win_freq(both_ooo4[!both_ooo4$Species.A %in% c("Cornetfish", "Spotted Porcupinefish") & !both_ooo4$Species.B %in% c("Cornetfish", "Spotted Porcupinefish"),]), by = "Species")
+both_test_nosp <- merge(both_test_nosp, lengthmass, by = "Species")
+# Number of data points:
+nrow(both_ooo4[!both_ooo4$Species.A %in% c("Cornetfish", "Spotted Porcupinefish") & !both_ooo4$Species.B %in% c("Cornetfish", "Spotted Porcupinefish"),])
+
+cbi_mass_nosp <- lm(both_test_nosp$CBI ~ both_test_nosp$Mass)
+summary(cbi_mass_nosp)$coefficients[2, 4]
+summary(cbi_mass_nosp)$r.squared
+
+winfreq_mass_nosp <- lm(both_test_nosp$WinFreq ~ both_test_nosp$Mass)
+summary(winfreq_mass_nosp)$coefficients[2, 4]
+summary(winfreq_mass_nosp)$r.squared
+
+cbi_mass2_3_nosp <- lm(both_test_nosp$CBI ~ both_test_nosp$Mass2_3)
+summary(cbi_mass2_3_nosp)$coefficients[2, 4]
+summary(cbi_mass2_3_nosp)$r.squared
+
+winfreq_mass2_3_nosp <- lm(both_test_nosp$WinFreq ~ both_test_nosp$Mass2_3)
+summary(winfreq_mass2_3_nosp)$coefficients[2, 4]
+summary(winfreq_mass2_3_nosp)$r.squared
+```
+
+This is the code used to generate Figure 1 of the manuscript:
+
+```{r, eval = FALSE}
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
+spec_dec <- function(x, k) trimws(format(round(x, k), nsmall = k)) # credit: Jeromy Anglim, Stack Overflow
+layout(matrix(c(seq(1,4,1)), nrow=2, ncol=2, byrow=TRUE))
+
+par(mar=c(5, 4, 2, 2))
+plot(both_test$Mass, both_test$CBI, xlab = "Body mass (g)", ylab = "CBI", main = "Isometric scaling", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+title("(a)", line = -1, adj = 0, outer = TRUE)
+title("(b)", line = -1, outer = TRUE)
+title("(c)", line = -20, adj = 0, outer = TRUE)
+title("(d)", line = -20, outer = TRUE)
+abline(lm(both_test$CBI ~ both_test$Mass), lwd = 5)
+abline(lm(both_test_nosp$CBI ~ both_test_nosp$Mass), lwd = 5, col = "gray70")
+rsquared <- summary(cbi_mass)$r.squared
+pvalue <- summary(cbi_mass)$coefficients[2,4]
+rsquared_nosp <- summary(cbi_mass_nosp)$r.squared
+pvalue_nosp <- summary(cbi_mass_nosp)$coefficients[2,4]
+text(800, 10.4, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared, 3))), pos = 4)
+text(800, 9.1, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(800, 7.3, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared_nosp, 3))), col = "gray70", pos = 4)
+text(800, 6, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(both_test$Mass2_3, both_test$CBI, xlab = "Body mass raised to 2/3", ylab = "", main = "Allometric scaling", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+legend("topleft", "(b)", bty = "n")
+abline(lm(both_test$CBI ~ both_test$Mass2_3), lwd = 5)
+abline(lm(both_test_nosp$CBI ~ both_test_nosp$Mass2_3), lwd = 5, col = "gray70")
+rsquared <- summary(cbi_mass2_3)$r.squared
+pvalue <- summary(cbi_mass2_3)$coefficients[2,4]
+rsquared_nosp <- summary(cbi_mass2_3_nosp)$r.squared
+pvalue_nosp <- summary(cbi_mass2_3_nosp)$coefficients[2,4]
+text(15, 10.4, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared, 3))), pos = 4)
+text(15, 9.1, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(15, 7.3, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared_nosp, 3))), col = "gray70", pos = 4)
+text(15, 6, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(both_test$Mass, both_test$WinFreq, xlab = "Body mass (g)", ylab = "Frequency of winning", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+legend("topleft", "(c)", bty = "n")
+abline(lm(both_test$WinFreq ~ both_test$Mass), lwd = 5)
+abline(lm(both_test_nosp$WinFreq ~ both_test_nosp$Mass), lwd = 5, col = "gray70")
+rsquared <- summary(winfreq_mass)$r.squared
+pvalue <- summary(winfreq_mass)$coefficients[2,4]
+rsquared_nosp <- summary(winfreq_mass_nosp)$r.squared
+pvalue_nosp <- summary(winfreq_mass_nosp)$coefficients[2,4]
+text(800, 0.4, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared, 3))), pos = 4)
+text(800, 0.4 - 1.3/16, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(800, 0.4 - (1.3+1.8)/16, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared_nosp, 3))), col = "gray70", pos = 4)
+text(800, 0.4 - (2*1.3+1.8)/16, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(both_test$Mass2_3, both_test$WinFreq, xlab = "Body mass raised to 2/3", ylab = "", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+legend("topleft", "(d)", bty = "n")
+abline(lm(both_test$WinFreq ~ both_test$Mass2_3), lwd = 5)
+abline(lm(both_test_nosp$WinFreq ~ both_test_nosp$Mass2_3), lwd = 5, col = "gray70")
+rsquared <- summary(winfreq_mass2_3)$r.squared
+pvalue <- summary(winfreq_mass2_3)$coefficients[2,4]
+rsquared_nosp <- summary(winfreq_mass2_3_nosp)$r.squared
+pvalue_nosp <- summary(winfreq_mass2_3_nosp)$coefficients[2,4]
+text(60, 0.4, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared, 3))), pos = 4)
+text(60, 0.4 - 1.3/16, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(60, 0.4 - (1.3+1.8)/16, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(rsquared_nosp, 3))), col = "gray70", pos = 4)
+text(60, 0.4 - (2*1.3+1.8)/16, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+dev.off()
+```
+
+# Testing Lanchester's Laws
+
+For each interaction, multiply the body mass of either species (scaled isometrically or allometrically) by its group size or group size squared. See which species maximizes the
+product, and whether it matches the observed winner. Run a binomial test on the proportion of successful predictions.
+
+```{r}
+both_group <- both4[both4$Group.A != both4$Group.B,]
+
+# Clean-up: drop rows containing NAs:
+both_group <- both_group[complete.cases(both_group),]
+
+# Exclude cornetfish:
+both_group <- both_group[both_group$Species.A != "Cornetfish" &
+                         both_group$Species.B != "Cornetfish",]
+
+# Get the body sizes for both competitors:
+for(i in 1:nrow(both_group)) {
+  species_a <- as.character(both_group$Species.A[i])
+  species_b <- as.character(both_group$Species.B[i])
+  both_group[i,6] <- lengthmass$Mass[lengthmass$Species == species_a]
+  both_group[i,7] <- lengthmass$Mass[lengthmass$Species == species_b]
+}
+colnames(both_group)[6:7] <- c("BodySize.A", "BodySize.B")
+
+# Convert group sizes to the right object type (from 'character' to 'double'):
+both_group$Group.A <- as.numeric(both_group$Group.A)
+both_group$Group.B <- as.numeric(both_group$Group.B)
+
+# Make predictions based on the linear law:
+for(i in 1:nrow(both_group)) {
+  if (both_group$Group.A[i]*both_group$BodySize.A[i] > both_group$Group.B[i]*both_group$BodySize.B[i]) {
+    both_group[i,8] <- both_group$Species.A[i] 
+  } else {
+    both_group[i,8] <- both_group$Species.B[i] 
+  }
+}
+
+# Make predictions based on the square law:
+for(i in 1:nrow(both_group)) {
+  if ((both_group$Group.A[i]^2)*both_group$BodySize.A[i] > (both_group$Group.B[i]^2)*both_group$BodySize.B[i]) {
+    both_group[i,9] <- both_group$Species.A[i] 
+  } else {
+    both_group[i,9] <- both_group$Species.B[i] 
+  }
+}
+colnames(both_group)[8:9] <- c("Linear.Law.Prediction", "Square.Law.Prediction")
+
+# Test if the linear law works:
+for(i in 1:nrow(both_group)) {
+  if (identical(as.character(both_group$Winner[i]), as.character(both_group$Linear.Law.Prediction[i])) == TRUE) {
+    both_group[i,10] <- 1
+  } else {
+    both_group[i,10] <- 0
+  }
+}
+
+# Test if the square law works:
+for(i in 1:nrow(both_group)) {
+  if (identical(as.character(both_group$Winner[i]), as.character(both_group$Square.Law.Prediction[i])) == TRUE) {
+    both_group[i,11] <- 1
+  } else {
+    both_group[i,11] <- 0
+  }
+}
+colnames(both_group)[10:11] <- c("Linear.True", "Square.True")
+
+# Proportion of successful predictions:
+sum(both_group$Linear.True)/nrow(both_group)
+sum(both_group$Square.True)/nrow(both_group)
+
+# Test significance:
+dbinom(sum(both_group$Linear.True), size = nrow(both_group), prob = 1/2) 
+dbinom(sum(both_group$Square.True), size = nrow(both_group), prob = 1/2)
+
+# When do the two laws give different predictions?
+dif <- both_group[both_group$Linear.Law.Prediction != both_group$Square.Law.Prediction,]
+dbinom(sum(dif$Linear.True), size = nrow(dif), prob = 1/2) 
+
+# Now repeat all of this for body mass raised to two thirds:
+both_group2 <- both4[both4$Group.A != both4$Group.B,]
+both_group2 <- both_group2[complete.cases(both_group2),]
+both_group2 <- both_group2[both_group2$Species.A != "Cornetfish" &
+                           both_group2$Species.B != "Cornetfish",]
+
+for(i in 1:nrow(both_group2)) {
+  species_a <- as.character(both_group2$Species.A[i])
+  species_b <- as.character(both_group2$Species.B[i])
+  both_group2[i,6] <- lengthmass$Mass2_3[lengthmass$Species == species_a]
+  both_group2[i,7] <- lengthmass$Mass2_3[lengthmass$Species == species_b]
+}
+colnames(both_group2)[6:7] <- c("BodySize.A", "BodySize.B")
+
+both_group2$Group.A <- as.numeric(both_group2$Group.A)
+both_group2$Group.B <- as.numeric(both_group2$Group.B)
+
+for(i in 1:nrow(both_group2)) {
+  if (both_group2$Group.A[i]*both_group2$BodySize.A[i] > both_group2$Group.B[i]*both_group2$BodySize.B[i]) {
+    both_group2[i,8] <- both_group2$Species.A[i] 
+  } else {
+    both_group2[i,8] <- both_group2$Species.B[i] 
+  }
+}
+
+for(i in 1:nrow(both_group2)) {
+  if ((both_group2$Group.A[i]^2)*both_group2$BodySize.A[i] > (both_group2$Group.B[i]^2)*both_group2$BodySize.B[i]) {
+    both_group2[i,9] <- both_group2$Species.A[i] 
+  } else {
+    both_group2[i,9] <- both_group2$Species.B[i] 
+  }
+}
+colnames(both_group2)[8:9] <- c("Linear.Law.Prediction", "Square.Law.Prediction")
+
+for(i in 1:nrow(both_group2)) {
+  if (identical(as.character(both_group2$Winner[i]), as.character(both_group2$Linear.Law.Prediction[i])) == TRUE) {
+    both_group2[i,10] <- 1
+  } else {
+    both_group2[i,10] <- 0
+  }
+}
+
+for(i in 1:nrow(both_group2)) {
+  if (identical(as.character(both_group2$Winner[i]), as.character(both_group2$Square.Law.Prediction[i])) == TRUE) {
+    both_group2[i,11] <- 1
+  } else {
+    both_group2[i,11] <- 0
+  }
+}
+colnames(both_group2)[10:11] <- c("Linear.True", "Square.True")
+
+sum(both_group2$Linear.True)/nrow(both_group2)
+sum(both_group2$Square.True)/nrow(both_group2)
+
+dbinom(sum(both_group2$Linear.True), size = nrow(both_group2), prob = 1/2) 
+dbinom(sum(both_group2$Square.True), size = nrow(both_group2), prob = 1/2)
+
+dif2 <- both_group2[both_group2$Linear.Law.Prediction != both_group2$Square.Law.Prediction,]
+dbinom(sum(dif2$Linear.True), size = nrow(dif2), prob = 1/2) 
+```
+
+# Supplementary analyses
+
+### "Rarefaction" analysis
+
+Plot a curve showing how many unique interactions you get with each new video scored:
+
+```{r}
+curve_analysis <- drop_ufos(scored)
+curve_analysis <- curve_analysis[complete.cases(curve_analysis),]
+curve_analysis <- curve_analysis[,c(4,5,6,10,13)]
+# Convert the dates and times into a readable format and sort the dataset by them:
+library(chron)
+curve_analysis$Date.of.recording <- as.Date(curve_analysis$Date.of.recording, format = "%d %B %y")
+# This will makes the times readable by 'chron':
+curve_analysis$Time.of.Recording <- paste(curve_analysis$Time.of.Recording, ":00", sep = "")
+curve_analysis$Time.of.Recording <- chron(times = curve_analysis$Time.of.Recording)
+# Sort by date and time:
+curve_analysis <- curve_analysis[order(curve_analysis$Date.of.recording, curve_analysis$Time.of.Recording, decreasing = TRUE),]
+
+species_pairs <- list()
+rarefaction <- data.frame(matrix(NA, nrow = nrow(curve_analysis), ncol = 2))
+colnames(rarefaction) <- c("Observation", "Unique Pairs")
+for(i in 1:nrow(curve_analysis)) {
+  new_pair <- c(as.character(curve_analysis$Species.A[i]), as.character(curve_analysis$Species.B[i]))
+  species_pairs <- c(species_pairs, list(new_pair))
+  rarefaction[i,1] <- i
+  rarefaction[i,2] <- length(unique(species_pairs))
+}
+plot(rarefaction$Observation, rarefaction$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species")
+
+# Now order the observations according to scoring time rather than recording time:
+curve_analysis2 <- drop_ufos(scored)
+curve_analysis2 <- curve_analysis2[complete.cases(curve_analysis2),]
+curve_analysis2 <- curve_analysis2[,c(3,10,13)]
+curve_analysis2$Date.of.scoring <- as.Date(curve_analysis2$Date.of.scoring, format = "%d %B %Y")
+curve_analysis2 <- curve_analysis2[order(curve_analysis2$Date.of.scoring, decreasing = TRUE),]
+
+species_pairs2 <- list()
+rarefaction2 <- data.frame(matrix(NA, nrow = nrow(curve_analysis), ncol = 2))
+colnames(rarefaction2) <- c("Observation", "Unique Pairs")
+for(i in 1:nrow(curve_analysis2)) {
+  new_pair <- c(as.character(curve_analysis2$Species.A[i]), as.character(curve_analysis2$Species.B[i]))
+  species_pairs2 <- c(species_pairs2, list(new_pair))
+  rarefaction2[i,1] <- i
+  rarefaction2[i,2] <- length(unique(species_pairs2))
+}
+```
+
+This is the code used to generate Supplementary Figure 1:
+
+```{r}
+plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species")
+```
+
+### Breakdown by diet
+
+```{r}
+diet <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/diet.csv", sep = ",", strip.white = TRUE)
+
+# Add dietary information for both Species A and Species B
+for(i in 1:nrow(both_group)) {
+  both_group[i, 12] <- diet$Diet[diet$Species == as.character(both_group$Species.A[i])]
+  both_group[i, 13] <- diet$Diet[diet$Species == as.character(both_group$Species.B[i])]
+}
+colnames(both_group)[12:13] <- c("Diet.A", "Diet.B")
+
+# Now subsample the test frame to include only those interactions that take place between
+# species with the same diet:
+test_benth <- both_group[both_group$Diet.A == "Benthic Invertebrate Consumer" &
+                         both_group$Diet.B == "Benthic Invertebrate Consumer",]
+nrow(test_benth)
+test_omni <- both_group[both_group$Diet.A == "Omnivore" & both_group$Diet.B == "Omnivore",]
+nrow(test_omni)
+test_herb <- both_group[both_group$Diet.A == "Herbivore/Detritivore" & both_group$Diet.B == "Herbivore/Detritivore",]
+nrow(test_herb)
+test_coral <- both_group[both_group$Diet.A == "Corallivore" & both_group$Diet.B == "Corallivore",]
+nrow(test_coral)
+
+# Test the validity of Lanchester's laws for interaction subsets of non-zero length.
+# Omnivores:
+sum(test_omni$Linear.True)/nrow(test_omni)
+sum(test_omni$Square.True)/nrow(test_omni)
+dbinom(sum(test_omni$Linear.True), size = nrow(test_omni), prob = 1/2) 
+dbinom(sum(test_omni$Square.True), size = nrow(test_omni), prob = 1/2)
+# Herbivores/Detritivores:
+sum(test_herb$Linear.True)/nrow(test_herb)
+sum(test_herb$Square.True)/nrow(test_herb)
+dbinom(sum(test_herb$Linear.True), size = nrow(test_herb), prob = 1/2)
+dbinom(sum(test_herb$Square.True), size = nrow(test_herb), prob = 1/2)
+
+# Re-run everything with mass raised to two thirds:
+for(i in 1:nrow(both_group2)) {
+  both_group2[i, 12] <- diet$Diet[diet$Species == as.character(both_group2$Species.A[i])]
+  both_group2[i, 13] <- diet$Diet[diet$Species == as.character(both_group2$Species.B[i])]
+}
+colnames(both_group2)[12:13] <- c("Diet.A", "Diet.B")
+test_benth2 <- both_group2[both_group2$Diet.A == "Benthic Invertebrate Consumer" &
+                         both_group2$Diet.B == "Benthic Invertebrate Consumer",]
+test_omni2 <- both_group2[both_group2$Diet.A == "Omnivore" & both_group2$Diet.B == "Omnivore",]
+test_herb2 <- both_group2[both_group2$Diet.A == "Herbivore/Detritivore" & both_group2$Diet.B == "Herbivore/Detritivore",]
+test_coral2 <- both_group2[both_group2$Diet.A == "Corallivore" & both_group2$Diet.B == "Corallivore",]
+
+sum(test_omni2$Linear.True)/nrow(test_omni2)
+sum(test_omni2$Square.True)/nrow(test_omni2)
+dbinom(sum(test_omni2$Linear.True), size = nrow(test_omni2), prob = 1/2) 
+dbinom(sum(test_omni2$Square.True), size = nrow(test_omni2), prob = 1/2) 
+sum(test_herb2$Linear.True)/nrow(test_herb2)
+sum(test_herb2$Square.True)/nrow(test_herb2)
+dbinom(sum(test_herb2$Linear.True), size = nrow(test_herb2), prob = 1/2)
+dbinom(sum(test_herb2$Square.True), size = nrow(test_herb2), prob = 1/2)
+```
+
+# Analyses not included in the manuscript
+
+These include exploratory analyses as well as applications of previously proposed methods to the fish dataset (e.g., Shelley et al.'s (2004) logistic regression).
+
+### Most often interacting species
+
+Subsample the data sheets down to the 10 most often interacting species. This will increase completeness (substantially) and linearity (slightly), but give you fewer data points to work with.
+
+```{r, eval = FALSE}
+mostoften <- function(sheet, df, n) {
+  occurrences <- tail(sort(table(unlist(sheet[,c("Species.A", "Species.B")]))), n)
+  max_n <- as.character(as.data.frame(occurrences)[,1])
+  max_n_matrix <- subset(df, select = max_n)
+  max_n_matrix <- subset(max_n_matrix, rownames(max_n_matrix) %in% max_n)
+  max_n_matrix <- max_n_matrix[order(row.names(max_n_matrix)), order(colnames(max_n_matrix))]
+  return(max_n_matrix)
+}
+
+dommatrix_max10 <- mostoften(sheet4, dommatrix, 10)
+scoredmatrix_max10 <- mostoften(scored4, scoredmatrix, 10)
+bothmatrix_max10 <- mostoften(both4, bothmatrix, 10)
+domooo_max10 <- mostoften(sheet_ooo4, domooo, 10)
+scoredooo_max10 <- mostoften(scored_ooo4, scoredooo, 10)
+bothooo_max10 <- mostoften(both_ooo4, bothooo, 10)
+
+dommax10 <- convert_to_df(dommatrix_max10)
+scoredmax10 <- convert_to_df(scoredmatrix_max10)
+bothmax10 <- convert_to_df(bothmatrix_max10)
+liveooomax10 <- convert_to_df(domooo_max10)
+scoredooomax10 <- convert_to_df(scoredooo_max10)
+bothooomax10 <- convert_to_df(bothooo_max10)
+
+paste("The completeness of the live-only 10-species matrix is ", compl(dommax10), "%", sep = "")
+paste("The completeness of the video-only 10-species matrix is ", compl(scoredmax10), "%", sep = "")
+paste("The completeness of the combined 10-species matrix is ", compl(bothmax10), "%", sep = "")
+paste("The completeness of the live-only one-on-one 10-species matrix is ", compl(liveooomax10), "%", sep = "")
+paste("The completeness of the video-only one-on-one 10-species matrix is ", compl(scoredooomax10), "%", sep = "")
+paste("The completeness of the combined one-on-one 10-species matrix is ", compl(bothooomax10), "%", sep = "")
+
+cbi_max10 <- cbi_hierarchy(dommax10)
+cbi_scoredmax10 <- cbi_hierarchy(scoredmax10)
+cbi_bothmax10 <- cbi_hierarchy(bothmax10)
+cbi_liveooomax10 <- cbi_hierarchy(liveooomax10)
+cbi_scoredooomax10 <- cbi_hierarchy(scoredooomax10)
+cbi_bothooomax10 <- cbi_hierarchy(bothooomax10)
+
+devries(dommax10, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(scoredmax10, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(bothmax10, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(liveooomax10, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(scoredooomax10, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(bothooomax10, Nperms = 10000, history = FALSE, plot = TRUE)
+```
+
+### I&SI rank
+
+A third measure of dominance that is particularly applicable to weakly but significantly linear dominance hierarchies, implemented as described in Schmid & de Vries (2013).
+
+```{r, eval = FALSE}
+library(compete)
+i_and_si_liveooo <- isi13(liveoooall, nTries = 10)
+rev(i_and_si_liveooo$best_order) # The order is given from least to most dominant by default
+
+i_and_si_videoooo <- isi13(scoredoooall, nTries = 10)
+rev(i_and_si_videoooo$best_order)
+
+i_and_si_bothooo <- isi13(bothoooall, nTries = 10)
+rev(i_and_si_bothooo$best_order)
+
+i_and_si <- isi13(dommax10, nTries = 10)
+rev(i_and_si$best_order) 
+
+i_and_si_scored <- isi13(scoredmax10, nTries = 10)
+rev(i_and_si_scored$best_order)
+
+i_and_si_both <- isi13(bothmax10, nTries = 10)
+rev(i_and_si_both$best_order)
+
+# Create a data frame with alphabetically ordered species and their corresponding I&SI ranks:
+isi_both <- i_and_si_bothooo$best_order
+isi_both <- setdiff(isi_both, "Cornetfish")
+test_isi <- data.frame(matrix(NA, nrow = length(isi_both), ncol = 2))
+colnames(test_isi) <- c("Species", "I_SI_Rank")
+test_isi$Species <- sort(isi_both)
+test_isi$I_SI_Rank <- match(sort(isi_both), isi_both)
+```
+
+### Nonlinear models
+
+Do simple nonlinear models (exponential, logarithmic, quadratic) explain the relationship between individual fighting ability (as determined by CBI and the frequency of winning) and body mass?
+
+```{r, eval = FALSE}
+# Add mass squared to the test frame:
+both_test[,9] <- both_test$Mass^2
+colnames(both_test)[9] <- "Mass_Squared"
+
+stats <- function(df) {
+  results <- data.frame(matrix(NA, nrow = 2, ncol = 14))
+  # Columns represent different statistics associated with each model. Spearman's rho
+  # and Pearson's coefficient are included for comparison; if the former is significant
+  # but the latter is not, this shows that the relationship is monotonic but nonlinear.
+  colnames(results) <- c("rho", "Spear_p-value", "cor", "Pear_p-value", "linAIC", "expRsq", "exp_p-value", "expAIC", "logRsq", "log_p-value", "logAIC", "quadrRsq", "quadr_p-value", "quadrAIC")
+  # Rows represent dependent variables:
+  row.names(results) <- c("CBI_Mass", "WinFreq_Mass")
+  spear_mass_CBI <- cor.test(df$CBI, df$Mass, method = "spearman", alternative = "two.sided")
+  spear_mass_WinFreq <- cor.test(df$WinFreq, df$Mass, method = "spearman", alternative = "two.sided")
+  pear_mass_CBI <- cor.test(df$CBI, df$Mass, method = "pearson", alternative = "two.sided")
+  pear_mass_WinFreq <- cor.test(df$WinFreq, df$Mass, method = "pearson", alternative = "two.sided")
+  linear_mass_CBI <- lm(df$CBI ~ df$Mass)
+  expo_mass_CBI <- lm(log(df$CBI) ~ df$Mass)
+  loga_mass_CBI <- lm(df$CBI ~ log(df$Mass))
+  quadra_mass_CBI <- lm(df$CBI ~ df$Mass + df$Mass_Squared)
+  linear_mass_WinFreq <- lm(df$WinFreq  ~ df$Mass)
+  # No exponential model for winning frequency: the minimum winning frequency observed
+  # in the dataset is 0, and simple log transformation therefore cannot be applied to it.
+  loga_mass_WinFreq <- lm(df$WinFreq  ~ log(df$Mass))
+  quadra_mass_WinFreq <- lm(df$WinFreq  ~ df$Mass + df$Mass_Squared)
+  results[1,1] <- spear_mass_CBI$estimate; results[1,2] <- spear_mass_CBI$p.value
+  results[1,3] <- pear_mass_CBI$estimate; results[1,4] <- pear_mass_CBI$p.value
+  results[1,5] <- AIC(linear_mass_CBI); results[1,6] <- summary(expo_mass_CBI)$r.squared
+  results[1,7] <- summary(expo_mass_CBI)$coefficients[,4][[2]]
+  results[1,8] <- AIC(expo_mass_CBI); results[1,9] <- summary(loga_mass_CBI)$r.squared
+  results[1,10] <- summary(loga_mass_CBI)$coefficients[,4][[2]]
+  results[1,11] <- AIC(loga_mass_CBI); results[1,12] <- summary(quadra_mass_CBI)$r.squared
+  results[1,13] <- summary(quadra_mass_CBI)$coefficients[,4][[2]]
+  results[1,14] <- AIC(quadra_mass_CBI)
+  results[2,1] <- spear_mass_WinFreq$estimate; results[2,2] <- spear_mass_WinFreq$p.value
+  results[2,3] <- pear_mass_WinFreq$estimate; results[2,4] <- pear_mass_WinFreq$p.value
+  results[2,5] <- AIC(linear_mass_WinFreq)
+  results[2,9] <- summary(loga_mass_WinFreq)$r.squared
+  results[2,10] <- summary(loga_mass_WinFreq)$coefficients[,4][[2]]
+  results[2,11] <- AIC(loga_mass_WinFreq)
+  results[2,12] <- summary(quadra_mass_WinFreq)$r.squared
+  results[2,13] <- summary(quadra_mass_WinFreq)$coefficients[,4][[2]]
+  results[2,14] <- AIC(quadra_mass_WinFreq)
+  return(results)
+}
+
+both_test_results <- stats(both_test)
+
+# Adjust the p-values for multiple comparisons:
+library(stats)
+pvalues <- unlist(both_test_results[,c(2,4,7,10,13)])
+p.adjust(pvalues, "bonferroni", sum(!is.na(pvalues)))
+```
+
+### Logistic regression
+
+The code below is an implementation of the logistic regression analysis described by Shelley et al. (2004). Given the paucity of data, no pairwise comparisons were made; each of the selected species was compared against all other species it interacted with. Unlike
+Shelley et al. (2004), we regress against both group size and group size squared.
+
+```{r, eval = FALSE}
+# Extract those species that participated in an interaction with more than one individual
+# at least a given number of times:
+atleastoncemorethan <- function(df, n) {
+  output <- vector()
+  species <- union(unique(df$Species.A), unique(df$Species.B))
+  for (i in species) {
+    a.frame <- df[df$Species.A == i,]
+    b.frame <- df[df$Species.B == i,]
+    if (sum(!is.na(a.frame$Group.A) & a.frame$Group.A > 1) + sum(!is.na(b.frame$Group.B) & b.frame$Group.B > 1) >= n) {
+      output <- c(output, as.character(i))
+    }
+  }
+  return(unique(output))
+}
+
+# Some ad hoc data clean-up before applying the atleastoncemorethan() function:
+scored4$Group.B <- as.numeric(as.character(scored4$Group.B))
+both4$Group.B <- as.numeric(both4$Group.B)
+
+# Include only those species that had a group size greater than 1 at least twice. This
+# ensures that there is variability in the predictor variable.
+live_logres <- sheet4[sheet4$Species.A %in% atleastoncemorethan(sheet4, 2) &
+                      sheet4$Species.B %in% atleastoncemorethan(sheet4, 2),]
+video_logres <- scored4[scored4$Species.A %in% atleastoncemorethan(scored4, 2) &
+                        scored4$Species.B %in% atleastoncemorethan(scored4, 2),]
+both_logres <- both4[both4$Species.A %in% atleastoncemorethan(both4, 2) &
+                    both4$Species.B %in% atleastoncemorethan(both4, 2),]
+
+# Convert from wide to long format: every two successive rows correspond to one
+# interaction, with the winner coded as "1" and the loser coded as "0".
+wide_to_long <- function(df) {
+  longframe <- data.frame(matrix(NA, ncol = 3, nrow = 2*nrow(df)))
+  colnames(longframe) <- c("Species", "Group_Size", "Is_Winner")
+  for (i in 1:nrow(df)) {
+    longframe$Species[2*i-1] <- as.character(df$Species.A[i])
+    longframe$Species[2*i] <- as.character(df$Species.B[i])
+    longframe$Group_Size[2*i-1] <- df$Group.A[i]
+    longframe$Group_Size[2*i] <- df$Group.B[i]
+    if (identical(as.character(df$Species.A[i]), as.character(df$Winner[i])) == TRUE) {
+      longframe$Is_Winner[2*i-1] <- 1
+      longframe$Is_Winner[2*i] <- 0
+    }
+    if (identical(as.character(df$Species.B[i]), as.character(df$Winner[i])) == TRUE) {
+      longframe$Is_Winner[2*i-1] <- 0
+      longframe$Is_Winner[2*i] <- 1
+    }
+  }
+  return(longframe)
+}
+
+# Make sure winner is always either A or B, and that you have group sizes for all rows:
+live_long <- wide_to_long(live_logres)
+nrow(live_long) == nrow(live_long[!is.na(live_long$Is_Winner),]) 
+nrow(live_long) == nrow(live_long[!is.na(live_long$Group_Size),])
+video_long <- wide_to_long(video_logres)
+nrow(video_long) == nrow(video_long[!is.na(video_long$Is_Winner),])
+nrow(video_long) == nrow(video_long[!is.na(video_long$Group_Size),])
+both_long <- wide_to_long(both_logres)
+nrow(both_long) == nrow(both_long[!is.na(both_long$Is_Winner),])
+nrow(both_long) == nrow(both_long[!is.na(both_long$Group_Size),])
+
+# Add group size squared
+square_it <- function(df) {
+  a <- ncol(df)
+  df[,a+1] <- df$Group_Size^2
+  colnames(df)[a+1] <- "Group_Size_Squared"
+  return(df)
+}
+
+live_long <- square_it(live_long)
+video_long <- square_it(video_long)
+both_long <- square_it(both_long)
+
+# Extract those species that won and lost at least 1 interaction. This ensures that there
+# is variability in the dependent variable:
+won_once <- function(df) {
+  output <- vector()
+  species <- unique(df$Species)
+  for(i in species) {
+    subset.frame <- df[df$Species == i,]
+    if(0 %in% subset.frame$Is_Winner & 1 %in% subset.frame$Is_Winner) {
+      output <- c(output, i)
+    }
+  }
+  return(df[df$Species %in% output,])
+}
+
+# This function creates a data frame with logistic regression results. The regression is
+# run against group size if x is FALSE and against group size squared if x is TRUE.
+library(pscl)
+species_logistic <- function(df, x = TRUE) {
+  j <- 1
+  species <- unique(df$Species)
+  results <- data.frame(matrix(NA, nrow = length(species), ncol = 6))
+  colnames(results) <- c("Species", "Coefficient", "p-value", "McFaddenpseudoRsq", "AIC", "n")
+  for(i in species) {
+    if (x == FALSE) {
+      model <- glm(df$Is_Winner[df$Species == i] ~ df$Group_Size[df$Species == i])
+    } else {
+      model <- glm(df$Is_Winner[df$Species == i] ~ df$Group_Size_Squared[df$Species == i] + df$Group_Size[df$Species == i])
+    }
+    results[j,1] <- i
+    results[j,2] <- model$coefficients[2]
+    results[j,3] <- coef(summary(model))[,4][2]
+    results[j,4] <- pR2(model)[4]
+    results[j,5] <- AIC(model)
+    results[j,6] <- nrow(df[df$Species == i,])
+    j <- j + 1
+  }
+  return(results)
+}
+
+# Linear group size
+species_logistic(won_once(live_long), FALSE)
+species_logistic(won_once(video_long), FALSE)
+species_logistic(won_once(both_long), FALSE)
+
+# Group size squared
+species_logistic(won_once(live_long), TRUE)
+species_logistic(won_once(video_long), TRUE)
+species_logistic(won_once(both_long), TRUE)
+```
+
+### Chi-squared
+
+This is an alternative way of testing Lanchester's laws. Instead of applying the binomial test to a binary variable (prediction: correct, incorrect), we apply $\chi^2$ to a 4-entry contingency table (correctly predicted win, incorrectly predicted win, correctly predicted loss, incorrectly predicted loss):
+
+```{r, eval = FALSE}
+populate_cont_table <- function(df, law) {
+  # Create a contingency table whose rows represent (1) Wins, (2) Losses predicted
+  # by the linear law and whose columns represent observed (1) Wins and (2) Losses
+  cont_table <- matrix(0, nrow = 2, ncol = 2)
+  # Focus solely on Species A. This is arbitrary; we could instead focus on B by
+  # interchanging individual rows and individual columns.
+  for(i in 1:nrow(df)) {
+    # A won:
+    if (identical(as.character(df$Species.A[i]), as.character(df$Winner[i])) == TRUE) {
+      # A was predicted to win:
+      if (identical(as.character(df$Species.A[i]), as.character(df[i, paste(law, ".Law.Prediction", sep = "")])) == TRUE) {
+        inc(cont_table[1,1])
+        # A was predicted to lose:
+      } else {
+        inc(cont_table[2,1])
+      }
+      # A lost:
+    } else {
+      # A was predicted to win:
+      if (identical(as.character(df$Species.A[i]), as.character(df[i, paste(law, ".Law.Prediction", sep = "")])) == TRUE) {
+        inc(cont_table[1,2])
+        # A was predicted to lose:
+      } else {
+        inc(cont_table[2,2])
+      }
+    }
+  }
+  return(cont_table)
+}
+
+chisq.test(populate_cont_table(both_group, "Linear"))
+chisq.test(populate_cont_table(both_group, "Square"))
+chisq.test(populate_cont_table(both_group2, "Linear"))
+chisq.test(populate_cont_table(both_group2, "Square"))
+
+# To distinguish between the linear and square laws, we run another chi-squared test.
+# This time, the contingency table has the following structure: [1,1] correctly
+# predicted by both models, [1,2] correctly predicted by the linear law but not the
+# square law, [2,1] correctly predicted by the square law but not the linear law, 
+# [2,2] predicted incorrectly by both laws.
+law_vs_law <- function(df) {
+  cont_table <- matrix(0, nrow = 2, ncol = 2)
+  for(i in 1:nrow(df)) {
+    if (df$Linear.True[i] == 1 & df$Square.True[i] == 1) {
+      inc(cont_table[1,1])
+    } else if (df$Linear.True[i] == 1 & df$Square.True[i] == 0) {
+      inc(cont_table[1,2])
+    } else if (df$Linear.True[i] == 0 & df$Square.True[i] == 1) {
+      inc(cont_table[2,1])
+    } else {
+      inc(cont_table[2,2])
+    }
+  }
+  return(cont_table)
+}
+
+laws_mass <- law_vs_law(both_group)
+laws_mass2_3 <- law_vs_law(both_group2)
+chisq.test(laws_mass)
+chisq.test(laws_mass2_3)
+```
+
+# References
+
+- Schmid VS, de Vries H. 2013. Finding a dominance order most consistent with a linear 
+hierarchy: an improved algorithm for the I&SI method. Anim Behav 86: 1097--1105
+- Shelley EL, Tanaka MYU, Ratnathicam AR, Blumstein DT. 2004. Can Lanchester’s laws help 
+explain interspecific dominance in birds? Condor 106: 395--400

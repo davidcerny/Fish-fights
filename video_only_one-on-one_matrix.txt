@@ -1,0 +1,18 @@
+Bird Wrasse			Brown Tang	Bullethead Parrotfish	Damselfish	Lemonpeel Angelfish	Moorish Idol	Orange-lined Triggerfish	Raccoon Butterflyfish	Regal Angelfish	Whitebar Gregory	Dark-capped Parrotfish	Juvenile Parrotfish	Scissortail Sergeant	Sixbar Wrasse	Speckled Butterflyfish	Threadfin Butterflyfish	Threeband Pennantfish	  
+Bird Wrasse			NA	  	0		     	0	  	0		   	0	    	0				1		     	0	       	0			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Brown Tang			0	  	NA		     	0	  	21		   	0	    	1				1		     	0	       	0			1		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Bullethead Parrotfish		0	  	1		     	NA	  	15		   	1	    	0				1		     	0	       	0			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Damselfish			0	  	0		     	0	  	NA		   	0	    	0				2		     	0	       	0			3		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Lemonpeel Angelfish		0	  	1		     	0	  	16		   	NA	    	0				1		     	0	       	0			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Moorish Idol			0	  	0		     	0	  	23		   	0	    	NA				8		     	1	       	0			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Orange-lined Triggerfish	0	  	0		     	0	  	10		   	0	    	2				NA		     	0	       	1			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Raccoon Butterflyfish		0	  	0		     	0	  	7		   	0	    	0				1		     	NA	       	0			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Regal Angelfish			0	  	0		     	0	  	9		   	0	    	3				2		     	0	       	NA			0		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Whitebar Gregory		0	  	0		     	1	  	1		   	0	    	0				0		     	0	       	0			NA		      	0		   	0		    	0	     	0		      	0		       	0		     	0 
+Dark-capped Parrotfish		0	  	0		     	0	  	5		   	0	    	0				0		     	0	       	0			0		      	NA		   	0		    	0	     	0		      	0		       	0		     	0 
+Juvenile Parrotfish		0	  	0		     	0	  	7		   	0	    	0				1		     	0	       	0			0		      	0		   	NA		    	0	     	0		      	0		       	0		     	0 
+Scissortail Sergeant		0	  	0		     	0	  	6		   	0	    	0				0		     	0	       	0			0		      	0		   	0		    	NA	     	0		      	0		       	0		     	0 
+Sixbar Wrasse			1	  	0		     	1	  	19		   	0	    	0				3		     	0	       	0			0		      	0		   	0		    	0	     	NA		      	0		       	0		     	0 
+Speckled Butterflyfish		0	  	0		     	0	  	2		   	0	    	0				0		     	0	       	0			0		      	0		   	0		    	0	     	0		      	NA		       	0		     	0 
+Threadfin Butterflyfish		0	  	0		     	0	  	1		   	0	    	0				0		     	0	       	0			0		      	0		   	0		    	0	     	0		      	0		       	NA		     	0 
+Threeband Pennantfish		0	  	0		     	0	  	1		   	0	    	0				0		     	0	       	0			0		      	0		   	0		    	0	     	0		      	0		       	0		     	NA
