@@ -244,6 +244,8 @@ Uncomment the code below (and change the paths as needed) to print the matrices:
 
 ### CBI
 
+The code below was used to compute the Clutton-Brock et al. dominance index (Clutton-Brock et al. 1979, 1982).
+
 ```{r}
 # Remember:
 # If A won over B, add 1 to [B,A] 
@@ -1110,6 +1112,9 @@ chisq.test(laws_mass2_3)
 
 # References
 
+- Clutton-Brock TH, Albon SD, Gibson RM, Guinness FE 1979 The logical stag: adaptive aspects of fighting in red deer (*Cervus elaphus* L.). Anim Behav 27: 211--225
+- Clutton-Brock TH, Guinness FE, Albon SD 1982 *Red Deer: Behaviour and Ecology of Two Sexes*. Chicago, IL: Univ of Chicago Press
+- Randall JE 2005 *Reef and Shore Fishes of the South Pacific: New Caledonia to Tahiti and the Pitcairn Islands*. Honolulu, HI: Univ of Hawaii Press
 - Schmid VS, de Vries H. 2013. Finding a dominance order most consistent with a linear 
 hierarchy: an improved algorithm for the I&SI method. Anim Behav 86: 1097--1105
 - Shelley EL, Tanaka MYU, Ratnathicam AR, Blumstein DT. 2004. Can Lanchester’s laws help 
