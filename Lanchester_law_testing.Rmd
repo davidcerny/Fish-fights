@@ -451,6 +451,8 @@ This is the code used to generate Figure 1 of the manuscript:
 
 ```{r, eval = FALSE}
 png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
+# setEPS()
+# postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/Figure_1.eps")
 spec_dec <- function(x, k) trimws(format(round(x, k), nsmall = k)) # credit: Jeromy Anglim, Stack Overflow
 layout(matrix(c(seq(1,4,1)), nrow=2, ncol=2, byrow=TRUE))
 
@@ -741,11 +743,19 @@ sum(test_omni$Linear.True)/nrow(test_omni)
 sum(test_omni$Square.True)/nrow(test_omni)
 dbinom(sum(test_omni$Linear.True), size = nrow(test_omni), prob = 1/2) 
 dbinom(sum(test_omni$Square.True), size = nrow(test_omni), prob = 1/2)
+dif3 <- test_omni[test_omni$Linear.Law.Prediction != test_omni$Square.Law.Prediction,]
+nrow(dif3)
+sum(dif3$Linear.True)/nrow(dif3)
+dbinom(sum(dif3$Linear.True), size = nrow(dif3), prob = 1/2) 
 # Herbivores/Detritivores:
 sum(test_herb$Linear.True)/nrow(test_herb)
 sum(test_herb$Square.True)/nrow(test_herb)
 dbinom(sum(test_herb$Linear.True), size = nrow(test_herb), prob = 1/2)
 dbinom(sum(test_herb$Square.True), size = nrow(test_herb), prob = 1/2)
+dif4 <- test_herb[test_herb$Linear.Law.Prediction != test_herb$Square.Law.Prediction,]
+nrow(dif4)
+sum(dif4$Linear.True)/nrow(dif4)
+dbinom(sum(dif4$Linear.True), size = nrow(dif4), prob = 1/2) 
 
 # Re-run everything with mass raised to two thirds:
 for(i in 1:nrow(both_group2)) {
@@ -763,10 +773,18 @@ sum(test_omni2$Linear.True)/nrow(test_omni2)
 sum(test_omni2$Square.True)/nrow(test_omni2)
 dbinom(sum(test_omni2$Linear.True), size = nrow(test_omni2), prob = 1/2) 
 dbinom(sum(test_omni2$Square.True), size = nrow(test_omni2), prob = 1/2) 
+dif5 <- test_omni2[test_omni2$Linear.Law.Prediction != test_omni2$Square.Law.Prediction,]
+nrow(dif5)
+sum(dif5$Linear.True)/nrow(dif5)
+dbinom(sum(dif5$Linear.True), size = nrow(dif5), prob = 1/2) 
 sum(test_herb2$Linear.True)/nrow(test_herb2)
 sum(test_herb2$Square.True)/nrow(test_herb2)
 dbinom(sum(test_herb2$Linear.True), size = nrow(test_herb2), prob = 1/2)
 dbinom(sum(test_herb2$Square.True), size = nrow(test_herb2), prob = 1/2)
+dif6 <- test_herb2[test_herb2$Linear.Law.Prediction != test_herb2$Square.Law.Prediction,]
+nrow(dif6)
+sum(dif6$Linear.True)/nrow(dif6)
+dbinom(sum(dif6$Linear.True), size = nrow(dif6), prob = 1/2) 
 ```
 
 # Analyses not included in the manuscript
