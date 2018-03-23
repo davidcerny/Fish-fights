@@ -3,6 +3,8 @@ title: "Testing Lanchester's laws in coral reef fish"
 author: "David Cerny"
 date: "1/28/2018"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Data preparation
@@ -10,8 +12,8 @@ output: html_document
 Read in the data spreadsheets:
 
 ```{r}
-sheet <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/LiveFishInteraction_Feb9.csv", sep = ",", strip.white = TRUE)
-scored <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/ScoredFishInteraction_Feb19.csv", sep = ",", strip.white = TRUE)
+sheet <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/LiveFishInteraction_Feb9.csv", sep = ",", strip.white = TRUE)
+scored <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/ScoredFishInteraction_Feb19.csv", sep = ",", strip.white = TRUE)
 
 # Combining the two is easier when dealing with the relevant columns alone. These are:
 # Species.A, Species.B, Group.A, Group.B, and Winner.
@@ -234,12 +236,12 @@ devries(nocornet_both, Nperms = 10000, history = FALSE, plot = TRUE)
 Uncomment the code below (and change the paths as needed) to print the matrices:
 
 ```{r}
-# write.table(nocornet_domall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/live_only_matrix.txt", quote = FALSE, sep = "\t")
-# write.table(scoredall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/video_only_matrix.txt", quote = FALSE, sep = "\t")
-# write.table(nocornet_bothall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/both_datasets_matrix.txt", quote = FALSE, sep = "\t")
-# write.table(nocornet_live, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/live_only_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
-# write.table(scoredoooall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/video_only_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
-# write.table(nocornet_both, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/both_datasets_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_domall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/live_only_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(scoredall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/video_only_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_bothall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/both_datasets_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_live, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/live_only_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(scoredoooall, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/video_only_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
+# write.table(nocornet_both, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/both_datasets_one-on-one_matrix.txt", quote = FALSE, sep = "\t")
 ```
 
 ### CBI
@@ -328,12 +330,12 @@ Compare the sizes estimated from live observations with those reported by Randal
 
 ```{r, comment='', message=F, warning=F}
 # Maximum attained sizes according to Randall (2005):
-sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/FishSize.csv", strip.white = TRUE, header = TRUE)
+sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", strip.white = TRUE, header = TRUE)
 colnames(sizes)[1] <- "Species"
 booksizes <- sizes$Attain[c(1:3,5:21,23:25)]
 
 # Distributions of sizes observed in the field:
-fishsize <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/FieldFishSize.csv", sep = ",", strip.white = TRUE)
+fishsize <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FieldFishSize.csv", sep = ",", strip.white = TRUE)
 
 # Calculate the mean, median, and maximum of the observed size distributions:
 meansizes <- colMeans(fishsize[,c(2:4,6:25)], na.rm = TRUE)
@@ -383,7 +385,7 @@ obs_sizes[,2] <- as.numeric(mediansizes)
 Include mass (scalled isometrically and allometrically) as an additional variable:
 
 ```{r}
-mass <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/body_to_mass_data.csv", sep = ",", strip.white = TRUE)
+mass <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/body_to_mass_data.csv", sep = ",", strip.white = TRUE)
 colnames(mass)[1] <- "Species"
 lengthmass <- merge(obs_sizes, mass, by = "Species")
 lengthmass[,5] <- lengthmass[,3]*(lengthmass[,2]^lengthmass[,4])
@@ -450,9 +452,9 @@ summary(winfreq_mass2_3_nosp)$r.squared
 This is the code used to generate Figure 1 of the manuscript:
 
 ```{r, eval = FALSE}
-png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
 # setEPS()
-# postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/Figure_1.eps")
+# postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_1.eps")
 spec_dec <- function(x, k) trimws(format(round(x, k), nsmall = k)) # credit: Jeromy Anglim, Stack Overflow
 layout(matrix(c(seq(1,4,1)), nrow=2, ncol=2, byrow=TRUE))
 
@@ -705,18 +707,23 @@ for(i in 1:nrow(curve_analysis2)) {
   rarefaction2[i,1] <- i
   rarefaction2[i,2] <- length(unique(species_pairs2))
 }
+plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species", main = "Contribution of new observations to dataset expansion")
 ```
 
 This is the code used to generate Supplementary Figure 1:
 
 ```{r}
-plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species")
+# png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_S1.png", width = 2880, height = 1800, pointsize = 64)
+# setEPS()
+# postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_S1.eps")
+# plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species", main = "Contribution of new observations to dataset expansion")
+# dev.off()
 ```
 
 ### Breakdown by diet
 
 ```{r}
-diet <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_data/diet.csv", sep = ",", strip.white = TRUE)
+diet <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/diet.csv", sep = ",", strip.white = TRUE)
 
 # Add dietary information for both Species A and Species B
 for(i in 1:nrow(both_group)) {
