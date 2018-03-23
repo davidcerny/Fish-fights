@@ -522,8 +522,6 @@ product, and whether it matches the observed winner. Run a binomial test on the 
 
 ```{r}
 both_group <- both4[both4$Group.A != both4$Group.B,]
-# Number of data points:
-nrow(both_group)
 
 # Clean-up: drop rows containing NAs:
 both_group <- both_group[complete.cases(both_group),]
@@ -531,6 +529,9 @@ both_group <- both_group[complete.cases(both_group),]
 # Exclude cornetfish:
 both_group <- both_group[both_group$Species.A != "Cornetfish" &
                          both_group$Species.B != "Cornetfish",]
+
+# Number of data points:
+nrow(both_group)
 
 # Get the body sizes for both competitors:
 for(i in 1:nrow(both_group)) {
