@@ -332,21 +332,21 @@ Compare the sizes estimated from live observations with those reported by Randal
 # Maximum attained sizes according to Randall (2005):
 sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", strip.white = TRUE, header = TRUE)
 colnames(sizes)[1] <- "Species"
-booksizes <- sizes$Attain[c(1:3,5:21,23:25)]
+booksizes <- sizes$Attain[c(1:3,5:8,10:24)]
 
 # Distributions of sizes observed in the field:
 fishsize <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FieldFishSize.csv", sep = ",", strip.white = TRUE)
 
 # Calculate the mean, median, and maximum of the observed size distributions:
-meansizes <- colMeans(fishsize[,c(2:4,6:25)], na.rm = TRUE)
+meansizes <- colMeans(fishsize[,c(2:4,6:9,11:25)], na.rm = TRUE)
 colMedians <- function(matrix) {
   return(apply(matrix, 2, median, na.rm = TRUE))
 }
 colMax <- function(matrix) {
   return(apply(matrix, 2, max, na.rm = TRUE))
 }
-mediansizes <- colMedians(fishsize[,c(2:4,6:25)])
-maxsizes <- colMax(fishsize[,c(2:4,6:25)])
+mediansizes <- colMedians(fishsize[,c(2:4,6:9,11:25)])
+maxsizes <- colMax(fishsize[,c(2:4,6:9,11:25)])
 
 # Do book sizes correlate with live observation sizes?
 a <- cor.test(meansizes, mediansizes, method = "spearman", alternative = "two.sided")
@@ -374,11 +374,14 @@ paste("correlation: ", signif(k$estimate[[1]],5), ", p-value: ", k$p.value, sep 
 l <- cor.test(booksizes, maxsizes, method = "pearson", alternative = "two.sided")
 paste("correlation: ", signif(l$estimate[[1]],5), ", p-value: ", l$p.value, sep = "")
 
+# Reassign the mediansizes vector so that it includes Juvenile Parrotfish:
+mediansizes <- colMedians(fishsize[,c(2:4,6:25)])
+
 # Create a new data frame that associates each species with the median of its observed
 # size distribution, excluding Cornetfish and "Striated Surgeonfish":
 obs_sizes <- data.frame(matrix(ncol = 2, nrow = length(mediansizes)))
 colnames(obs_sizes) <- c("Species", "Size")
-obs_sizes[,1] <- as.character(sizes$Species[c(1:3,5:21,23:25)])
+obs_sizes[,1] <- as.character(sizes$Species[c(1:3,5:24)])
 obs_sizes[,2] <- as.numeric(mediansizes)
 ```
 
