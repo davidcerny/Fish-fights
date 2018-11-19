@@ -1,0 +1,6 @@
+library(ape)
+fish_tree <- read.tree("/Users/David/Documents/College/2017–18/Winter 2018/FBQ paper/Behav Ecol revisions/actinopt_12k_treePL.tre")
+species_table <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", sep = ";", stringsAsFactors = FALSE)
+species_list <- sub(" ", "_", species_table$Scientific.Name[!species_table$Scientific.Name %in% c("", "Fistularia commersonii")])
+small_tree <- drop.tip(fish_tree, which(!fish_tree$tip.label %in% species_list))
+write.tree(small_tree, "/Users/David/Documents/College/2017–18/Winter 2018/FBQ paper/Behav Ecol revisions/small_tree.tre", digits = 21)
