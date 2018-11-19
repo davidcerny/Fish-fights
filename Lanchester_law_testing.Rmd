@@ -171,10 +171,17 @@ Exclude cornetfish, the only predator in the dataset. (Note: the fact that this 
 
 ```{r}
 # Exclude a taxon from a matrix:
+# Original unvectorized function used in the pre-revisions part of the file is commented
+# out below:
+#
+# exclude <- function(df, taxon) {
+#   colrow <- c(which(row.names(df) == taxon), which(colnames(df) == taxon))
+#   excluded <- df[-colrow[1], -colrow[2]]
+#   return(excluded)
+# }
 exclude <- function(df, taxon) {
-  colrow <- c(which(row.names(df) == taxon), which(colnames(df) == taxon))
-  excluded <- df[-colrow[1], -colrow[2]]
-  return(excluded)
+  retained <- df[!rownames(df) %in% taxon, !colnames(df) %in% taxon]
+  return(retained)
 }
 
 # Note: since there are no interactions involving cornetfish in the video-only data,
@@ -258,7 +265,7 @@ The code below was used to compute the Clutton-Brock et al. dominance index (Clu
 # -> So the A row represents the species that dominate A (A losses)
 # (B + b + 1)/(L + l + 1)
 cbi <- function(df, species) {
-  # number of entries in column B that are neither 0 nor NA:
+  # number of entries in column 'species' that are neither 0 nor NA:
   B <- sum(df[,species] != 0, na.rm = TRUE)
   # species corresponding to those entries:
   dominates <- rownames(df)[which(df[,species] != 0)]
@@ -328,9 +335,9 @@ win_freq <- function(df) {
 
 Compare the sizes estimated from live observations with those reported by Randall (2005):
 
-```{r, comment='', message=F, warning=F}
+```{r}
 # Maximum attained sizes according to Randall (2005):
-sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", strip.white = TRUE, header = TRUE)
+sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", sep = ";", strip.white = TRUE, header = TRUE)
 colnames(sizes)[1] <- "Species"
 booksizes <- sizes$Attain[c(1:3,5:8,10:24)]
 
@@ -349,24 +356,25 @@ mediansizes <- colMedians(fishsize[,c(2:4,6:9,11:25)])
 maxsizes <- colMax(fishsize[,c(2:4,6:9,11:25)])
 
 # Do book sizes correlate with live observation sizes?
-a <- cor.test(meansizes, mediansizes, method = "spearman", alternative = "two.sided")
-paste("correlation: ", signif(a$estimate[[1]],5), ", p-value: ", a$p.value, sep = "")
-b <- cor.test(meansizes, maxsizes, method = "spearman", alternative = "two.sided")
-paste("correlation: ", signif(b$estimate[[1]],5), ", p-value: ", b$p.value, sep = "")
-c <- cor.test(mediansizes, maxsizes, method = "spearman", alternative = "two.sided")
-paste("correlation: ", signif(c$estimate[[1]],5), ", p-value: ", c$p.value, sep = "")
+# a <- cor.test(meansizes, mediansizes, method = "spearman", alternative = "two.sided")
+# paste("correlation: ", signif(a$estimate[[1]],5), ", p-value: ", a$p.value, sep = "")
+# b <- cor.test(meansizes, maxsizes, method = "spearman", alternative = "two.sided")
+# paste("correlation: ", signif(b$estimate[[1]],5), ", p-value: ", b$p.value, sep = "")
+# c <- cor.test(mediansizes, maxsizes, method = "spearman", alternative = "two.sided")
+# paste("correlation: ", signif(c$estimate[[1]],5), ", p-value: ", c$p.value, sep = "")
 d <- cor.test(meansizes, mediansizes, method = "pearson", alternative = "two.sided")
 paste("correlation: ", signif(d$estimate[[1]],5), ", p-value: ", d$p.value, sep = "")
 e <- cor.test(meansizes, maxsizes, method = "pearson", alternative = "two.sided")
 paste("correlation: ", signif(e$estimate[[1]],5), ", p-value: ", e$p.value, sep = "")
 f <- cor.test(mediansizes, maxsizes, method = "pearson", alternative = "two.sided")
 paste("correlation: ", signif(f$estimate[[1]],5), ", p-value: ", f$p.value, sep = "")
-g <- cor.test(booksizes, mediansizes, method = "spearman", alternative = "two.sided")
-paste("correlation: ", signif(g$estimate[[1]],5), ", p-value: ", g$p.value, sep = "")
-h <- cor.test(booksizes, meansizes, method = "spearman", alternative = "two.sided")
-paste("correlation: ", signif(h$estimate[[1]],5), ", p-value: ", h$p.value, sep = "")
-i <- cor.test(booksizes, maxsizes, method = "spearman", alternative = "two.sided")
-paste("correlation: ", signif(i$estimate[[1]],5), ", p-value: ", i$p.value, sep = "")
+# Non-unique ranks, gives an error:
+# g <- cor.test(booksizes, mediansizes, method = "spearman", alternative = "two.sided")
+# paste("correlation: ", signif(g$estimate[[1]],5), ", p-value: ", g$p.value, sep = "")
+# h <- cor.test(booksizes, meansizes, method = "spearman", alternative = "two.sided")
+# paste("correlation: ", signif(h$estimate[[1]],5), ", p-value: ", h$p.value, sep = "")
+# i <- cor.test(booksizes, maxsizes, method = "spearman", alternative = "two.sided")
+# paste("correlation: ", signif(i$estimate[[1]],5), ", p-value: ", i$p.value, sep = "")
 j <- cor.test(booksizes, mediansizes, method = "pearson", alternative = "two.sided")
 paste("correlation: ", signif(j$estimate[[1]],5), ", p-value: ", j$p.value, sep = "")
 k <- cor.test(booksizes, meansizes, method = "pearson", alternative = "two.sided")
@@ -452,10 +460,11 @@ summary(winfreq_mass2_3_nosp)$coefficients[2, 4]
 summary(winfreq_mass2_3_nosp)$r.squared
 ```
 
-This is the code used to generate Figure 1 of the manuscript:
+This is the code used to generate Figure 1 of the manuscript (**NOTE:** This figure summarizes the results of the regression analyses uncorrected for phylogenetic relatedness, and is now given as Figure S3 in the Supplementary Information.)
 
 ```{r, eval = FALSE}
-png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
+# png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Supp_Figure_3.png", width = 3600, height = 3600, pointsize = 96)
 # setEPS()
 # postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_1.eps")
 spec_dec <- function(x, k) trimws(format(round(x, k), nsmall = k)) # credit: Jeromy Anglim, Stack Overflow
@@ -480,7 +489,6 @@ text(800, 6, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = 
 
 par(mar=c(5, 4, 2, 2))
 plot(both_test$Mass2_3, both_test$CBI, xlab = "Body mass raised to 2/3", ylab = "", main = "Allometric scaling", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
-legend("topleft", "(b)", bty = "n")
 abline(lm(both_test$CBI ~ both_test$Mass2_3), lwd = 5)
 abline(lm(both_test_nosp$CBI ~ both_test_nosp$Mass2_3), lwd = 5, col = "gray70")
 rsquared <- summary(cbi_mass2_3)$r.squared
@@ -494,7 +502,6 @@ text(15, 6, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "
 
 par(mar=c(5, 4, 2, 2))
 plot(both_test$Mass, both_test$WinFreq, xlab = "Body mass (g)", ylab = "Frequency of winning", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
-legend("topleft", "(c)", bty = "n")
 abline(lm(both_test$WinFreq ~ both_test$Mass), lwd = 5)
 abline(lm(both_test_nosp$WinFreq ~ both_test_nosp$Mass), lwd = 5, col = "gray70")
 rsquared <- summary(winfreq_mass)$r.squared
@@ -508,7 +515,6 @@ text(800, 0.4 - (2*1.3+1.8)/16, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue
 
 par(mar=c(5, 4, 2, 2))
 plot(both_test$Mass2_3, both_test$WinFreq, xlab = "Body mass raised to 2/3", ylab = "", pch = 16, col = ifelse(both_test$Mass == both_test$Mass[both_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
-legend("topleft", "(d)", bty = "n")
 abline(lm(both_test$WinFreq ~ both_test$Mass2_3), lwd = 5)
 abline(lm(both_test_nosp$WinFreq ~ both_test_nosp$Mass2_3), lwd = 5, col = "gray70")
 rsquared <- summary(winfreq_mass2_3)$r.squared
@@ -713,14 +719,14 @@ for(i in 1:nrow(curve_analysis2)) {
 plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species", main = "Contribution of new observations to dataset expansion")
 ```
 
-This is the code used to generate Supplementary Figure 1:
+This is the code used to generate Figure S4:
 
-```{r}
-# png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_S1.png", width = 2880, height = 1800, pointsize = 64)
+```{r, eval = FALSE}
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_S1.png", width = 2880, height = 1800, pointsize = 64)
 # setEPS()
 # postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_S1.eps")
-# plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species", main = "Contribution of new observations to dataset expansion")
-# dev.off()
+plot(rarefaction2$Observation, rarefaction2$`Unique Pairs`, pch = 16, xlab = "Observations", ylab = "Unique pairs of interacting species", main = "Contribution of new observations to dataset expansion")
+dev.off()
 ```
 
 ### Breakdown by diet
@@ -777,7 +783,6 @@ test_benth2 <- both_group2[both_group2$Diet.A == "Benthic Invertebrate Consumer"
                          both_group2$Diet.B == "Benthic Invertebrate Consumer",]
 test_omni2 <- both_group2[both_group2$Diet.A == "Omnivore" & both_group2$Diet.B == "Omnivore",]
 test_herb2 <- both_group2[both_group2$Diet.A == "Herbivore/Detritivore" & both_group2$Diet.B == "Herbivore/Detritivore",]
-test_coral2 <- both_group2[both_group2$Diet.A == "Corallivore" & both_group2$Diet.B == "Corallivore",]
 
 sum(test_omni2$Linear.True)/nrow(test_omni2)
 sum(test_omni2$Square.True)/nrow(test_omni2)
@@ -1137,6 +1142,886 @@ laws_mass <- law_vs_law(both_group)
 laws_mass2_3 <- law_vs_law(both_group2)
 chisq.test(laws_mass)
 chisq.test(laws_mass2_3)
+```
+
+# Response to *Behav. Ecol.* reviews
+
+## Fish size correlation
+
+We discovered a discrepancy between the identification of the longnose butterflyfish in our fish size data (FishSize.csv) and Table 1 of our manuscript: the same species was identified as *Forcipiger longirostris* in the former and as the closely related *F. flavissimus* in the latter. Based on the photograph we took of the species, we concluded that the latter identification was correct, as the lower half of its eye was silver rather than black (http://reefs.com/2015/12/31/long-nosed-butterflies-part-2-forcipiger/). We therefore replaced the maximum attained size reported for *F. longirostris* by Nelson (2005) with that reported for *F. flavissimus*. Below, we recalculate the correlation between the reported attained sizes and the observed sizes:
+
+```{r}
+# Maximum attained sizes according to Randall (2005):
+sizes <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", sep = ";", header = TRUE)
+colnames(sizes)[1] <- "Species"
+booksizes <- sizes$Attain[c(1:3,5:8,10:24)]
+
+# Distributions of sizes observed in the field:
+fishsize <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FieldFishSize.csv", sep = ",", strip.white = TRUE)
+
+# Calculate the mean, median, and maximum of the observed size distributions:
+meansizes <- colMeans(fishsize[,c(2:4,6:9,11:25)], na.rm = TRUE)
+colMedians <- function(matrix) {
+  return(apply(matrix, 2, median, na.rm = TRUE))
+}
+colMax <- function(matrix) {
+  return(apply(matrix, 2, max, na.rm = TRUE))
+}
+mediansizes <- colMedians(fishsize[,c(2:4,6:9,11:25)])
+maxsizes <- colMax(fishsize[,c(2:4,6:9,11:25)])
+
+# Do book sizes correlate with live observation sizes?
+g <- cor.test(booksizes, mediansizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(g$estimate[[1]],5), ", p-value: ", g$p.value, sep = "")
+h <- cor.test(booksizes, meansizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(h$estimate[[1]],5), ", p-value: ", h$p.value, sep = "")
+i <- cor.test(booksizes, maxsizes, method = "spearman", alternative = "two.sided")
+paste("correlation: ", signif(i$estimate[[1]],5), ", p-value: ", i$p.value, sep = "")
+j <- cor.test(booksizes, mediansizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(j$estimate[[1]],5), ", p-value: ", j$p.value, sep = "")
+k <- cor.test(booksizes, meansizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(k$estimate[[1]],5), ", p-value: ", k$p.value, sep = "")
+l <- cor.test(booksizes, maxsizes, method = "pearson", alternative = "two.sided")
+paste("correlation: ", signif(l$estimate[[1]],5), ", p-value: ", l$p.value, sep = "")
+```
+
+## CBI Calculation
+
+Going back to Clutton-Brock et al. (1979), we discovered that our original implementation of the CBI-calculating function had an error. When counting the species beaten by those species that were dominated by the subject, we need to exclude the subject itself; the same is true when tallying the species that dominated those species which dominated the subject. This was not done in the original code, but it is done below:
+
+```{r}
+# Remember:
+# The A column represents the species that A dominates (A wins)
+# The A row represents the species that dominate A (A losses)
+# (B + b + 1)/(L + l + 1)
+cbi_new <- function(df, species) {
+  # number of entries in column 'species' that are neither 0 nor NA:
+  B <- sum(df[,species] != 0, na.rm = TRUE)
+  # species corresponding to those entries:
+  dominates <- rownames(df)[which(df[,species] != 0)]
+  # number of entries in the columns corresponding to those species that are neither 0 nor NA:
+  if (length(dominates) > 0) {
+    # exclude 'species' itself from consideration
+    b <- sum(df[rownames(df) != species, colnames(df) %in% species] != 0, na.rm = TRUE)
+  } else {
+    b <- 0
+  }
+  # number of entries in row B that are neither 0 nor NA:
+  L <- sum(df[species,], na.rm = TRUE)
+  # species corresponding to those entries:
+  dominated <- colnames(df)[which(df[species,] != 0)]
+  # number of entries in the rows corresponding to those species that are neither 0 nor NA:
+  if (length(dominated) > 0) {
+    # exclude 'species' itself from consideration
+    l <- sum(df[rownames(df) %in% dominated, colnames(df) != species] != 0, na.rm = TRUE)
+  } else {
+    l <- 0
+  }
+  return((B + b + 1)/(L + l + 1))
+}
+
+# Apply it to the full matrix:
+cbi_hierarchy_new <- function(df) {
+  cbi_matrix <- data.frame(matrix(NA, nrow = nrow(df), ncol = 2))
+  colnames(cbi_matrix) <- c("Species", "CBI")
+  for (i in 1:nrow(df)) {
+    cbi_matrix$Species[i] <- rownames(df)[i]
+    cbi_matrix$CBI[i] <- cbi_new(df, rownames(df)[i])
+  }
+  cbi_matrix <- cbi_matrix[order(cbi_matrix$CBI, decreasing = TRUE),]
+  return(cbi_matrix)
+}
+```
+
+## Phylogenetic GLS
+
+First, we need to drop the "Juvenile Parrotfish" category from the analysis, since it is a mixture of multiple species:
+
+```{r}
+nojp_domall <- exclude(nocornet_domall, "Juvenile Parrotfish")
+nojp_scoredall <- exclude(scoredall, "Juvenile Parrotfish")
+nojp_bothall <- exclude(nocornet_bothall, "Juvenile Parrotfish")
+nojp_live <- exclude(nocornet_live, "Juvenile Parrotfish")
+nojp_scored <- exclude(scoredoooall, "Juvenile Parrotfish")
+nojp_both <- exclude(nocornet_both, "Juvenile Parrotfish")
+
+# Recalculate CBI:
+cbi_nojp_domall <- cbi_hierarchy_new(nojp_domall)
+cbi_nojp_scoredall <- cbi_hierarchy_new(nojp_scoredall)
+cbi_nojp_bothall <- cbi_hierarchy_new(nojp_bothall)
+cbi_nojp_ooolive <- cbi_hierarchy_new(nojp_live)
+cbi_nojp_ooovideo <- cbi_hierarchy_new(nojp_scored)
+cbi_nojp_oooboth <- cbi_hierarchy_new(nojp_both)
+
+# Recalculate the frequency of winning and combine the results with the CBI hierarchy
+# and mass-length data into a single data frame for further testing. We will again focus
+# on one-on-one data only from now on.
+
+# This is a generalized version of the no_surgeon() function defined above:
+drop_taxa <- function(df, taxa_to_drop) {
+  return(df[!df$Species.A %in% taxa_to_drop & !df$Species.B %in% taxa_to_drop,])
+}
+
+sheet_ooo5 <- drop_taxa(sheet_ooo4, c("Cornetfish", "Juvenile Parrotfish"))
+scored_ooo5 <- drop_taxa(scored_ooo4, c("Cornetfish", "Juvenile Parrotfish"))
+both_ooo5 <- drop_taxa(both_ooo4, c("Cornetfish", "Juvenile Parrotfish"))
+
+sheet_phylo_test <- merge(cbi_nojp_ooolive, win_freq(sheet_ooo5), by = "Species")
+sheet_phylo_test <- merge(sheet_phylo_test, lengthmass, by = "Species")
+# We need to provide row names to ensure that each row of the data frame is linked to the
+# correct tree tip:
+rownames(sheet_phylo_test) <- sheet_phylo_test$Species
+scored_phylo_test <- merge(cbi_nojp_ooovideo, win_freq(scored_ooo5), by = "Species")
+scored_phylo_test <- merge(scored_phylo_test, lengthmass, by = "Species")
+rownames(scored_phylo_test) <- scored_phylo_test$Species
+both_phylo_test <- merge(cbi_nojp_oooboth, win_freq(both_ooo5), by = "Species")
+both_phylo_test <- merge(both_phylo_test, lengthmass, by = "Species")
+rownames(both_phylo_test) <- both_phylo_test$Species
+
+# Finally, repeat all of the above without the spotted porcupinefish (we will want to see
+# how its exclusion as an outlier is going to change the results). This species was never
+# observed on video, so there is no need to remove it from the video-only data. Note that
+# the exclude() function is not safeguarded against attempts to remove taxa that are not
+# present in the data frame to begin with.
+
+nojpsp_domall <- exclude(nojp_domall, "Spotted Porcupinefish")
+nojpsp_bothall <- exclude(nojp_bothall, "Spotted Porcupinefish")
+nojpsp_live <- exclude(nojp_live, "Spotted Porcupinefish")
+nojpsp_both <- exclude(nojp_both, "Spotted Porcupinefish")
+
+cbi_nojpsp_domall <- cbi_hierarchy_new(nojpsp_domall)
+cbi_nojpsp_bothall <- cbi_hierarchy_new(nojpsp_bothall)
+cbi_nojpsp_ooolive <- cbi_hierarchy_new(nojpsp_live)
+cbi_nojpsp_oooboth <- cbi_hierarchy_new(nojpsp_both)
+
+sheet_ooo6 <- drop_taxa(sheet_ooo4, c("Cornetfish", "Juvenile Parrotfish", "Spotted Porcupinefish"))
+both_ooo6 <- drop_taxa(both_ooo4, c("Cornetfish", "Juvenile Parrotfish", "Spotted Porcupinefish"))
+
+sheet_phylo_test_nosp <- merge(cbi_nojpsp_ooolive, win_freq(sheet_ooo6), by = "Species")
+sheet_phylo_test_nosp <- merge(sheet_phylo_test_nosp, lengthmass, by = "Species")
+rownames(sheet_phylo_test_nosp) <- sheet_phylo_test_nosp$Species
+both_phylo_test_nosp <- merge(cbi_nojpsp_oooboth, win_freq(both_ooo6), by = "Species")
+both_phylo_test_nosp <- merge(both_phylo_test_nosp, lengthmass, by = "Species")
+rownames(both_phylo_test_nosp) <- both_phylo_test_nosp$Species
+```
+
+Recalculate the properties of the one-on-one matrices created by the exclusion of juvenile parrotfish:
+
+```{r}
+paste("The completeness of the live-only one-on-one matrix after the exclusion of juvenile parrotfish is ", compl(nojp_live), "%", sep = "")
+paste("The completeness of the video-only one-on-one matrix after the exclusion of juvenile parrotfish is ", compl(nojp_scored), "%", sep = "")
+paste("The completeness of the combined one-on-one matrix after the exclusion of juvenile parrotfish is ", compl(nojp_both), "%", sep = "")
+devries(nojp_live, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(nojp_scored, Nperms = 10000, history = FALSE, plot = TRUE)
+devries(nojp_both, Nperms = 10000, history = FALSE, plot = TRUE)
+```
+
+Now we can run phylogenetic regression:
+
+```{r}
+library(nlme)
+library(phytools)
+fishtree <- read.tree("/Users/David/Documents/College/2017–18/Winter 2018/FBQ paper/Behav Ecol revisions/small_tree.tre")
+
+# We will have to match the scientific names in the tip labels against the common names
+# we use for the remaining data:
+species_table <- read.csv("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/FishSize.csv", sep = ";", stringsAsFactors = FALSE)
+fishtree$tip.label <- species_table$Common.Name[match(unlist(lapply(strsplit(fishtree$tip.label, "_"), function(x) paste(x[1], x[2], sep = " "))), species_table$Scientific.Name)]
+
+# Make a new tree that does not include the spotted porcupinefish:
+fishtree_nosp <- drop.tip(fishtree, "Spotted Porcupinefish")
+
+# Run phylogenetic GLS on all parameter combinations (mass versus mass raised to two thirds, CBI vs. frequency of winning, spotted porcupinefish vs. no spotted porcupinefish):
+pgls_CBI_Mass <- gls(CBI ~ Mass, correlation = corPagel(1, phy = fishtree), data = both_phylo_test, method = "ML")
+summary(pgls_CBI_Mass)
+pgls_CBI_Mass2_3 <- gls(CBI ~ Mass2_3, correlation = corPagel(1, phy = fishtree), data = both_phylo_test, method = "ML")
+summary(pgls_CBI_Mass2_3)
+pgls_WinFreq_Mass <- gls(WinFreq ~ Mass, correlation = corPagel(1, phy = fishtree), data = both_phylo_test, method = "ML")
+summary(pgls_WinFreq_Mass)
+pgls_WinFreq_Mass2_3 <- gls(WinFreq ~ Mass2_3, correlation = corPagel(1, phy = fishtree), data = both_phylo_test, method = "ML")
+summary(pgls_WinFreq_Mass2_3)
+pgls_CBI_Mass_nosp <- gls(CBI ~ Mass, correlation = corPagel(1, phy = fishtree_nosp), data = both_phylo_test_nosp, method = "ML")
+summary(pgls_CBI_Mass_nosp)
+pgls_CBI_Mass2_3_nosp <- gls(CBI ~ Mass2_3, correlation = corPagel(1, phy = fishtree_nosp), data = both_phylo_test_nosp, method = "ML")
+summary(pgls_CBI_Mass2_3_nosp)
+pgls_WinFreq_Mass_nosp <- gls(WinFreq ~ Mass, correlation = corPagel(1, phy = fishtree_nosp), data = both_phylo_test_nosp, method = "ML")
+summary(pgls_WinFreq_Mass_nosp)
+pgls_WinFreq_Mass2_3_nosp <- gls(WinFreq ~ Mass2_3, correlation = corPagel(1, phy = fishtree_nosp), data = both_phylo_test_nosp, method = "ML")
+summary(pgls_WinFreq_Mass2_3_nosp)
+```
+
+We can see that for all models involving CBI, we get very weak relationships (characterized by nearly horizontal regression lines) that are nevertheless extremely significant. A more careful examination reveals that this is because Pagel's $\lambda$ estimated for these models exceeds 1 (moreover, it is identical in all the four cases), even though it is only defined between 0 and 1. The cause of this is unclear (but likely related to the shape of the tree, especially to the presence of terminal branches longer than expected under the Yule process), as is the interpretability of the resulting estimate. Based on Liam Revell's remarks in the first of the two links given below, we turn to the `caper` package to fit a phylogenetic GLS under the constraint that $\lambda \leq 1$:
+
+http://blog.phytools.org/2016/01/phylogenetic-regression-when-estimated.html
+http://grokbase.com/t/r/r-sig-phylo/113s5mhjgg/pagels-lambda-greater-than-one
+
+```{r}
+if(!require("caper")) {install.packages("caper")}
+library(caper)
+both_comparative <- comparative.data(data = both_phylo_test, phy = fishtree, names.col = "Species", vcv = TRUE, warn.dropped = TRUE)
+both_comparative_nosp <- comparative.data(data = both_phylo_test_nosp, phy = fishtree_nosp, names.col = "Species", vcv = TRUE, warn.dropped = TRUE)
+
+pgls_CBI_Mass <- pgls(formula = CBI ~ Mass, data = both_comparative, lambda = "ML")
+summary(pgls_CBI_Mass)
+pgls_CBI_Mass2_3 <- pgls(formula = CBI ~ Mass2_3, data = both_comparative, lambda = "ML")
+summary(pgls_CBI_Mass2_3)
+pgls_CBI_Mass_nosp <- pgls(formula = CBI ~ Mass, data = both_comparative_nosp, lambda = "ML")
+summary(pgls_CBI_Mass_nosp)
+pgls_CBI_Mass2_3_nosp <- pgls(formula = CBI ~ Mass2_3, data = both_comparative_nosp, lambda = "ML")
+summary(pgls_CBI_Mass2_3_nosp)
+pgls_WinFreq_Mass <- pgls(formula = WinFreq ~ Mass, data = both_comparative, lambda = "ML")
+summary(pgls_WinFreq_Mass)
+pgls_WinFreq_Mass2_3 <- pgls(formula = WinFreq ~ Mass2_3, data = both_comparative, lambda = "ML")
+summary(pgls_WinFreq_Mass2_3)
+pgls_WinFreq_Mass_nosp <- pgls(formula = WinFreq ~ Mass, data = both_comparative_nosp, lambda = "ML")
+summary(pgls_WinFreq_Mass_nosp)
+pgls_WinFreq_Mass2_3_nosp <- pgls(formula = WinFreq ~ Mass2_3, data = both_comparative_nosp, lambda = "ML")
+summary(pgls_WinFreq_Mass2_3_nosp)
+
+# Check the distribution of the residuals:
+par(mfrow=c(2,2))
+plot(pgls_CBI_Mass)
+par(mfrow=c(2,2))
+plot(pgls_CBI_Mass2_3)
+par(mfrow=c(2,2))
+plot(pgls_CBI_Mass_nosp)
+par(mfrow=c(2,2))
+plot(pgls_CBI_Mass2_3_nosp)
+par(mfrow=c(2,2))
+plot(pgls_WinFreq_Mass)
+par(mfrow=c(2,2))
+plot(pgls_WinFreq_Mass2_3)
+par(mfrow=c(2,2))
+plot(pgls_WinFreq_Mass_nosp)
+par(mfrow=c(2,2))
+plot(pgls_WinFreq_Mass2_3_nosp)
+```
+
+This worked great: the $\lambda$ and *p* values for the winning frequency are the same as before, and while $\lambda$ is still running up against the upper bound of 1 for CBI, the fact that it cannot exceed it results in much more sensible *p* values. We can now proceed to visualizing the results:
+
+```{r, eval = FALSE}
+# Generate a new Figure 1:
+
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ paper/Behav Ecol revisions/Figure_1.png", width = 3600, height = 3600, pointsize = 96)
+# setEPS()
+# postscript("/Users/David/Documents/College/2017–18/Winter 2018/FBQ_git/Figure_1.eps")
+spec_dec <- function(x, k) trimws(format(round(x, k), nsmall = k)) # credit: Jeromy Anglim, Stack Overflow
+layout(matrix(c(seq(1,4,1)), nrow=2, ncol=2, byrow=TRUE))
+
+par(mar=c(5, 4, 2, 2))
+plot(both_phylo_test$Mass, both_phylo_test$CBI, xlab = "Body mass (g)", ylab = "CBI", main = "Isometric scaling", pch = 16, col = ifelse(both_phylo_test$Mass == both_phylo_test$Mass[both_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+title("(a)", line = -1, adj = 0, outer = TRUE)
+title("(b)", line = -1, outer = TRUE)
+title("(c)", line = -20, adj = 0, outer = TRUE)
+title("(d)", line = -20, outer = TRUE)
+abline(pgls_CBI_Mass, lwd = 5)
+abline(pgls_CBI_Mass_nosp, lwd = 5, col = "gray70")
+lambda <- pgls_CBI_Mass$param[2]
+pseudor2 <- summary(pgls_CBI_Mass)$r.squared
+pvalue <- summary(pgls_CBI_Mass)$coef[2,4]
+lambda_nosp <- pgls_CBI_Mass_nosp$param[2]
+pseudor2_nosp <- summary(pgls_CBI_Mass_nosp)$r.squared
+pvalue_nosp <- summary(pgls_CBI_Mass_nosp)$coef[2,4]
+text(600, 2.95, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(600, 2.75, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(600, 2.5, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(600, 1.3, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(600, 1.1, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(600, 0.85, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(both_phylo_test$Mass2_3, both_phylo_test$CBI, xlab = "Body mass raised to 2/3", ylab = "", main = "Allometric scaling", pch = 16, col = ifelse(both_phylo_test$Mass == both_phylo_test$Mass[both_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+abline(pgls_CBI_Mass2_3, lwd = 5)
+abline(pgls_CBI_Mass2_3_nosp, lwd = 5, col = "gray70")
+lambda <- pgls_CBI_Mass2_3$param[2]
+pseudor2 <- summary(pgls_CBI_Mass2_3)$r.squared
+pvalue <- summary(pgls_CBI_Mass2_3)$coef[2,4]
+lambda_nosp <- pgls_CBI_Mass2_3_nosp$param[2]
+pseudor2_nosp <- summary(pgls_CBI_Mass2_3_nosp)$r.squared
+pvalue_nosp <- summary(pgls_CBI_Mass2_3_nosp)$coef[2,4]
+text(58, 2.95, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(58, 2.75, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(58, 2.5, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(58, 2, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(58, 1.8, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(58, 1.55, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(both_phylo_test$Mass, both_phylo_test$WinFreq, xlab = "Body mass (g)", ylab = "Frequency of winning", pch = 16, col = ifelse(both_phylo_test$Mass == both_phylo_test$Mass[both_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+abline(pgls_WinFreq_Mass, lwd = 5)
+abline(pgls_WinFreq_Mass_nosp, lwd = 5, col = "gray70")
+lambda <- pgls_WinFreq_Mass$param[2]
+pseudor2 <- summary(pgls_WinFreq_Mass)$r.squared
+pvalue <- summary(pgls_WinFreq_Mass)$coef[2,4]
+lambda_nosp <- pgls_WinFreq_Mass_nosp$param[2]
+pseudor2_nosp <- summary(pgls_WinFreq_Mass_nosp)$r.squared
+pvalue_nosp <- summary(pgls_WinFreq_Mass_nosp)$coef[2,4]
+text(600, 0.7, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(600, 0.7 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(600, 0.7 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(600, 0.225, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(600, 0.225 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(600, 0.225 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(both_phylo_test$Mass2_3, both_phylo_test$WinFreq, xlab = "Body mass raised to 2/3", ylab = "", pch = 16, col = ifelse(both_phylo_test$Mass == both_phylo_test$Mass[both_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+abline(pgls_WinFreq_Mass2_3, lwd = 5)
+abline(pgls_WinFreq_Mass2_3_nosp, lwd = 5, col = "gray70")
+lambda <- pgls_WinFreq_Mass2_3$param[2]
+pseudor2 <- summary(pgls_WinFreq_Mass2_3)$r.squared
+pvalue <- summary(pgls_WinFreq_Mass2_3)$coef[2,4]
+lambda_nosp <- pgls_WinFreq_Mass2_3_nosp$param[2]
+pseudor2_nosp <- summary(pgls_WinFreq_Mass2_3_nosp)$r.squared
+pvalue_nosp <- summary(pgls_WinFreq_Mass2_3_nosp)$coef[2,4]
+text(58, 0.98, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(58, 0.98 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(58, 0.98 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(58, 0.225, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(58, 0.225 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(58, 0.225 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+dev.off()
+```
+
+## Group size-only and body size-only models
+
+Below, we conduct another test in which the $\alpha$ coefficients (individual fighting abilities) are all set to 1, and therefore effectively disregarded. We also evaluate the fit of another model, which includes body size as the only parameter. Note that neither model requires us to repeat the test for body mass raised to 2/3. The group size-only model does not include this parameter at all, while the body size-only model will always yield the same predictions under both mass scalings, since $m^{\frac{2}{3}}$ is a monotonically increasing function of $m$.
+
+```{r}
+# Add a new column to both_group with predictions based on group size alone:
+for(i in 1:nrow(both_group)) {
+  if (both_group$Group.A[i] > both_group$Group.B[i]) {
+    both_group[i,14] <- both_group$Species.A[i] 
+  } else {
+    both_group[i,14] <- both_group$Species.B[i] 
+  }
+}
+
+# Add a new column to both_group with predictions based on body size alone:
+for(i in 1:nrow(both_group)) {
+  if (both_group$BodySize.A[i] > both_group$BodySize.B[i]) {
+    both_group[i,15] <- both_group$Species.A[i] 
+  } else {
+    both_group[i,15] <- both_group$Species.B[i] 
+  }
+}
+colnames(both_group)[14:15] <- c("Group.Size.Only.Prediction","Body.Size.Only.Prediction")
+
+# Test if the group size-only model works:
+for(i in 1:nrow(both_group)) {
+  if (identical(as.character(both_group$Winner[i]), as.character(both_group$Group.Size.Only.Prediction[i])) == TRUE) {
+    both_group[i,16] <- 1
+  } else {
+    both_group[i,16] <- 0
+  }
+}
+
+# Test if the body size-only model works:
+for(i in 1:nrow(both_group)) {
+  if (identical(as.character(both_group$Winner[i]), as.character(both_group$Body.Size.Only.Prediction[i])) == TRUE) {
+    both_group[i,17] <- 1
+  } else {
+    both_group[i,17] <- 0
+  }
+}
+colnames(both_group)[16:17] <- c("Group.Size.Only.True", "Body.Size.Only.True")
+
+# Proportion of successful predictions:
+sum(both_group$Group.Size.Only.True)/nrow(both_group)
+sum(both_group$Body.Size.Only.True)/nrow(both_group)
+
+# Test significance:
+dbinom(sum(both_group$Group.Size.Only.True), size = nrow(both_group), prob = 1/2)
+dbinom(sum(both_group$Body.Size.Only.True), size = nrow(both_group), prob = 1/2)
+```
+
+In what cases did the body size-only model work but the next best model (Lanchester's linear law) did not?
+
+```{r}
+both_group[both_group$Body.Size.Only.True == 1 & both_group$Linear.True == 0,]
+```
+
+8 out of the 11 interactions in this category involved damselfish. What happens if we remove them from the dataset?
+
+```{r}
+both_group3 <- both_group[both_group$Species.A != "Damselfish" & both_group$Species.B != "Damselfish", ]
+nrow(both_group3)
+
+# Proportion of successful predictions:
+sum(both_group3$Linear.True)/nrow(both_group3)
+sum(both_group3$Square.True)/nrow(both_group3)
+sum(both_group3$Group.Size.Only.True)/nrow(both_group3)
+sum(both_group3$Body.Size.Only.True)/nrow(both_group3)
+
+# Test significance:
+dbinom(sum(both_group3$Linear.True), size = nrow(both_group3), prob = 1/2)
+dbinom(sum(both_group3$Square.True), size = nrow(both_group3), prob = 1/2)
+dbinom(sum(both_group3$Group.Size.Only.True), size = nrow(both_group3), prob = 1/2)
+dbinom(sum(both_group3$Body.Size.Only.True), size = nrow(both_group3), prob = 1/2)
+
+# With mass raised to the two-thirds power. Remember, this can change the results for the
+# linear and square laws, but not for the body size-only or group size-only models.
+both_group4 <- both_group2[both_group2$Species.A != "Damselfish" & both_group2$Species.B != "Damselfish" ,]
+nrow(both_group4)
+
+# Proportion of successful predictions:
+sum(both_group4$Linear.True)/nrow(both_group4)
+sum(both_group4$Square.True)/nrow(both_group4)
+
+# Test significance:
+dbinom(sum(both_group4$Linear.True), size = nrow(both_group4), prob = 1/2)
+dbinom(sum(both_group4$Square.True), size = nrow(both_group4), prob = 1/2)
+```
+
+In the next step, we calculate the statistical power of the linear law, square law, and body size-only model tests. All of the below is based on http://www.calvin.edu/~scofield/courses/m343/F15/handouts/binomialTestPower.pdf
+
+```{r}
+# First, find the rejection region for n = 83 (the number of data points in both_group)
+# under the null assumption (probability of successful prediction = 0.5) and significance
+# level alpha = 0.05:
+qbinom(0.025, nrow(both_group), 0.5) # 33
+qbinom(0.975, nrow(both_group), 0.5) # 50
+# Since P(33 \leq x \geq 50) is probably not equal to exactly 0.95, we need to find out 
+# if the sum of the values below is larger or smaller than this significance threshold:
+pbinom(33, nrow(both_group), 0.5) + (1 - pbinom(50, nrow(both_group), 0.5))
+pbinom(32, nrow(both_group), 0.5) + (1 - pbinom(51, nrow(both_group), 0.5))
+# Let's use 32 and 51 as the boundaries of the rejection region.
+
+# Compute power as 1 - beta:
+1 - (pbinom(51, nrow(both_group), sum(both_group$Body.Size.Only.True)/nrow(both_group)) -
+       pbinom(32, nrow(both_group), sum(both_group$Body.Size.Only.True)/nrow(both_group)))
+```
+
+Compute the maximum likelihood estimate under the binomial and use it to compute AIC scores:
+
+```{r}
+# -2*log(L^hat) for the body size-only model:
+-2*log(dbinom(sum(both_group$Body.Size.Only.True), 
+              nrow(both_group),
+              sum(both_group$Body.Size.Only.True)/nrow(both_group)))
+# -2*log(L^hat) for the linear law:
+-2*log(dbinom(sum(both_group$Linear.True), 
+              nrow(both_group),
+              sum(both_group$Linear.True)/nrow(both_group)))
+```
+
+Finally, see how the body size-only and group-size only models perform when fitted to the datasets subsampled by diet:
+
+```{r}
+test_omni
+test_omni2
+test_herb
+test_herb2
+
+# The function below adds columns "Group.Size.Only.Prediction",
+# "Body.Size.Only.Prediction", "Group.Size.Only.True", and "Body.Size.Only.True" to an 
+# arbitrary data frame containing columns named "Group.A", "Group.B", "BodySizeA",
+# "BodySizeB", and "Winner":
+test_extra_two_models <- function(dataframe) {
+  n <- ncol(dataframe)
+  for(i in 1:nrow(dataframe)) {
+    if (dataframe$Group.A[i] > dataframe$Group.B[i]) {
+      dataframe[i, n+1] <- dataframe$Species.A[i]
+    } else {
+      dataframe[i, n+1] <- dataframe$Species.B[i]
+    }
+    if (dataframe$BodySize.A[i] > dataframe$BodySize.B[i]) {
+      dataframe[i, n+2] <- dataframe$Species.A[i] 
+    } else {
+      dataframe[i, n+2] <- dataframe$Species.B[i] 
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+1])) == TRUE) {
+      dataframe[i, n+3] <- 1
+    } else {
+      dataframe[i, n+3] <- 0
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+2])) == TRUE) {
+      dataframe[i, n+4] <- 1
+    } else {
+      dataframe[i, n+4] <- 0
+    }
+  }
+  colnames(dataframe)[(n+1):(n+4)] <- c("Group.Size.Only.Prediction",
+                                        "Body.Size.Only.Prediction",
+                                        "Group.Size.Only.True",
+                                        "Body.Size.Only.True")
+  return(dataframe)
+}
+
+test_omni <- test_extra_two_models(test_omni)
+test_herb <- test_extra_two_models(test_herb)
+
+# Proportion of successful predictions:
+sum(test_omni$Group.Size.Only.True)/nrow(test_omni)
+sum(test_omni$Body.Size.Only.True)/nrow(test_omni)
+sum(test_herb$Group.Size.Only.True)/nrow(test_herb)
+sum(test_herb$Body.Size.Only.True)/nrow(test_herb)
+
+# Test significance:
+dbinom(sum(test_omni$Group.Size.Only.True), size = nrow(test_omni), prob = 1/2)
+dbinom(sum(test_omni$Body.Size.Only.True), size = nrow(test_omni), prob = 1/2)
+dbinom(sum(test_herb$Group.Size.Only.True), size = nrow(test_herb), prob = 1/2)
+dbinom(sum(test_herb$Body.Size.Only.True), size = nrow(test_herb), prob = 1/2)
+```
+
+## Live/video differences
+
+We have already alculated the properties of matrices based on live-only and video-only observations. In the next step, we compare the hierarchies:
+
+```{r}
+# Subsample each taxon-by-taxon dominance matrix down to the shared set of 15 species
+nojp_live_shared <- exclude(nojp_live, setdiff(rownames(nojp_live), rownames(nojp_scored)))
+nojp_scored_shared <- exclude(nojp_scored, setdiff(rownames(nojp_scored), rownames(nojp_live)))
+nojp_both_shared <- exclude(nojp_both, rownames(nojp_both)[!rownames(nojp_both) %in% intersect(rownames(nojp_live), rownames(nojp_scored))])
+
+# Recalculate the CBI for the 15 species based on the live-only and video-only datasets:
+live_subsampled_cbi <- cbi_hierarchy_new(nojp_live_shared)
+colnames(live_subsampled_cbi)[2] <- "Live"
+video_subsampled_cbi <- cbi_hierarchy_new(nojp_scored_shared)
+colnames(video_subsampled_cbi)[2] <- "Video"
+subsampled_cbi <- merge(live_subsampled_cbi, video_subsampled_cbi, by = "Species")
+both_subsampled_cbi <- cbi_hierarchy_new(nojp_both_shared)
+subsampled_cbi <- merge(subsampled_cbi, both_subsampled_cbi, by = "Species")
+colnames(subsampled_cbi)[4] <- "Both"
+
+# Recalculate the frequency of winning for the 15 species based on the live-only and
+# video-only datasets:
+live_subsampled_winfreq <- win_freq(sheet_ooo5)[win_freq(sheet_ooo5)$Species %in% intersect(win_freq(sheet_ooo5)$Species, win_freq(scored_ooo5)$Species),]
+live_subsampled_winfreq <- live_subsampled_winfreq[order(live_subsampled_winfreq$Species),]
+colnames(live_subsampled_winfreq)[2] <- "Live"
+video_subsampled_winfreq <- win_freq(scored_ooo5)[win_freq(scored_ooo5)$Species %in% intersect(win_freq(sheet_ooo5)$Species, win_freq(scored_ooo5)$Species),]
+video_subsampled_winfreq <- video_subsampled_winfreq[order(video_subsampled_winfreq$Species),]
+colnames(video_subsampled_winfreq)[2] <- "Video"
+subsampled_winfreq <- merge(live_subsampled_winfreq, video_subsampled_winfreq, by = "Species")
+subsampled_winfreq <- merge(subsampled_winfreq, win_freq(both_ooo5), by = "Species")
+colnames(subsampled_winfreq)[4] <- "Both"
+
+if(!require("RcmdrMisc")) {install.packages("RcmdrMisc")} # Beware: has many dependencies!
+library(RcmdrMisc)
+
+rcorr.adjust(as.matrix(subsampled_cbi[,-1]), type = "spearman")
+rcorr.adjust(as.matrix(subsampled_cbi[,-1]), type = "pearson")
+rcorr.adjust(as.matrix(subsampled_winfreq[,-1]), type = "spearman")
+rcorr.adjust(as.matrix(subsampled_winfreq[,-1]), type = "pearson")
+```
+
+Re-test the relationship between body size and individual fighting ability using live-only and video-only data:
+
+```{r}
+# Appropriately subsample 'fishtree':
+fishtree_live <- drop.tip(fishtree, fishtree$tip.label[!fishtree$tip.label %in% rownames(nojp_live)])
+fishtree_live_nosp <- drop.tip(fishtree, c("Spotted Porcupinefish", fishtree$tip.label[!fishtree$tip.label %in% rownames(nojp_live)]))
+fishtree_video <- drop.tip(fishtree, fishtree$tip.label[!fishtree$tip.label %in% rownames(nojp_scored)])
+
+library(caper)
+live_comparative <- comparative.data(data = sheet_phylo_test, phy = fishtree_live, names.col = "Species", vcv = TRUE, warn.dropped = TRUE)
+live_comparative_nosp <- comparative.data(data = sheet_phylo_test_nosp, phy = fishtree_live_nosp, names.col = "Species", vcv = TRUE, warn.dropped = TRUE)
+video_comparative <- comparative.data(data = scored_phylo_test, phy = fishtree_video, names.col = "Species", vcv = TRUE, warn.dropped = TRUE)
+
+live_pgls_CBI_Mass <- pgls(formula = CBI ~ Mass, data = live_comparative, lambda = "ML")
+summary(live_pgls_CBI_Mass)
+live_pgls_CBI_Mass2_3 <- pgls(formula = CBI ~ Mass2_3, data = live_comparative, lambda = "ML"); summary(live_pgls_CBI_Mass2_3)
+live_pgls_WinFreq_Mass <- pgls(formula = WinFreq ~ Mass, data = live_comparative, lambda = "ML"); summary(live_pgls_WinFreq_Mass)
+live_pgls_WinFreq_Mass2_3 <- pgls(formula = WinFreq ~ Mass2_3, data = live_comparative, lambda = "ML"); summary(live_pgls_WinFreq_Mass2_3)
+live_pgls_CBI_Mass_nosp <- pgls(formula = CBI ~ Mass, data = live_comparative_nosp, lambda = "ML"); summary(live_pgls_CBI_Mass_nosp)
+live_pgls_CBI_Mass2_3_nosp <- pgls(formula = CBI ~ Mass2_3, data = live_comparative_nosp, lambda = "ML"); summary(live_pgls_CBI_Mass2_3_nosp)
+live_pgls_WinFreq_Mass_nosp <- pgls(formula = WinFreq ~ Mass, data = live_comparative_nosp, lambda = "ML"); summary(live_pgls_WinFreq_Mass_nosp)
+live_pgls_WinFreq_Mass2_3_nosp <- pgls(formula = WinFreq ~ Mass2_3, data = live_comparative_nosp, lambda = "ML"); summary(live_pgls_WinFreq_Mass2_3_nosp)
+video_pgls_CBI_Mass <- pgls(formula = CBI ~ Mass, data = video_comparative, lambda = "ML")
+summary(video_pgls_CBI_Mass)
+video_pgls_CBI_Mass2_3 <- pgls(formula = CBI ~ Mass2_3, data = video_comparative, lambda = "ML"); summary(video_pgls_CBI_Mass2_3)
+video_pgls_WinFreq_Mass <- pgls(formula = WinFreq ~ Mass, data = video_comparative, lambda = "ML"); summary(video_pgls_WinFreq_Mass)
+video_pgls_WinFreq_Mass2_3 <- pgls(formula = WinFreq ~ Mass2_3, data = video_comparative, lambda = "ML"); summary(video_pgls_WinFreq_Mass2_3)
+
+# Check the distribution of the residuals:
+par(mfrow=c(2,2))
+plot(live_pgls_CBI_Mass)
+par(mfrow=c(2,2))
+plot(live_pgls_CBI_Mass2_3)
+par(mfrow=c(2,2))
+plot(live_pgls_WinFreq_Mass)
+par(mfrow=c(2,2))
+plot(live_pgls_WinFreq_Mass2_3)
+par(mfrow=c(2,2))
+plot(live_pgls_CBI_Mass_nosp)
+par(mfrow=c(2,2))
+plot(live_pgls_CBI_Mass2_3_nosp)
+par(mfrow=c(2,2))
+plot(live_pgls_WinFreq_Mass_nosp)
+par(mfrow=c(2,2))
+plot(live_pgls_WinFreq_Mass2_3_nosp)
+par(mfrow=c(2,2))
+plot(video_pgls_CBI_Mass)
+par(mfrow=c(2,2))
+plot(video_pgls_CBI_Mass2_3)
+par(mfrow=c(2,2))
+plot(video_pgls_WinFreq_Mass)
+par(mfrow=c(2,2))
+plot(video_pgls_WinFreq_Mass2_3)
+```
+
+Generate dataset-specific versions of Figure 1:
+
+```{r, eval = FALSE}
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ paper/Behav Ecol revisions/Supp_Fig1_live.png", width = 3600, height = 3600, pointsize = 96)
+layout(matrix(c(seq(1,4,1)), nrow=2, ncol=2, byrow=TRUE))
+
+par(mar=c(5, 4, 2, 2))
+plot(sheet_phylo_test$Mass, sheet_phylo_test$CBI, xlab = "Body mass (g)", ylab = "CBI", main = "Isometric scaling", pch = 16, col = ifelse(sheet_phylo_test$Mass == sheet_phylo_test$Mass[sheet_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+title("(a)", line = -1, adj = 0, outer = TRUE)
+title("(b)", line = -1, outer = TRUE)
+title("(c)", line = -20, adj = 0, outer = TRUE)
+title("(d)", line = -20, outer = TRUE)
+abline(live_pgls_CBI_Mass, lwd = 5)
+abline(live_pgls_CBI_Mass_nosp, lwd = 5, col = "gray70")
+lambda <- live_pgls_CBI_Mass$param[2]
+pseudor2 <- summary(live_pgls_CBI_Mass)$r.squared
+pvalue <- summary(live_pgls_CBI_Mass)$coef[2,4]
+lambda_nosp <- live_pgls_CBI_Mass_nosp$param[2]
+pseudor2_nosp <- summary(live_pgls_CBI_Mass_nosp)$r.squared
+pvalue_nosp <- summary(live_pgls_CBI_Mass_nosp)$coef[2,4]
+text(600, 2.95, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(600, 2.75, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(600, 2.5, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(600, 1.6, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(600, 1.4, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(600, 1.15, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(sheet_phylo_test$Mass2_3, sheet_phylo_test$CBI, xlab = "Body mass raised to 2/3", ylab = "", main = "Allometric scaling", pch = 16, col = ifelse(sheet_phylo_test$Mass == sheet_phylo_test$Mass[sheet_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+abline(live_pgls_CBI_Mass2_3, lwd = 5)
+abline(live_pgls_CBI_Mass2_3_nosp, lwd = 5, col = "gray70")
+lambda <- live_pgls_CBI_Mass2_3$param[2]
+pseudor2 <- summary(live_pgls_CBI_Mass2_3)$r.squared
+pvalue <- summary(live_pgls_CBI_Mass2_3)$coef[2,4]
+lambda_nosp <- live_pgls_CBI_Mass2_3_nosp$param[2]
+pseudor2_nosp <- summary(live_pgls_CBI_Mass2_3_nosp)$r.squared
+pvalue_nosp <- summary(live_pgls_CBI_Mass2_3_nosp)$coef[2,4]
+text(58, 2.75, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(58, 2.55, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(58, 2.3, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(58, 0.6, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(58, 0.4, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(58, 0.15, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(sheet_phylo_test$Mass, sheet_phylo_test$WinFreq, xlab = "Body mass (g)", ylab = "Frequency of winning", pch = 16, col = ifelse(sheet_phylo_test$Mass == sheet_phylo_test$Mass[sheet_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+abline(live_pgls_WinFreq_Mass, lwd = 5)
+abline(live_pgls_WinFreq_Mass_nosp, lwd = 5, col = "gray70")
+lambda <- live_pgls_WinFreq_Mass$param[2]
+pseudor2 <- summary(live_pgls_WinFreq_Mass)$r.squared
+pvalue <- summary(live_pgls_WinFreq_Mass)$coef[2,4]
+lambda_nosp <- live_pgls_WinFreq_Mass_nosp$param[2]
+pseudor2_nosp <- summary(live_pgls_WinFreq_Mass_nosp)$r.squared
+pvalue_nosp <- summary(live_pgls_WinFreq_Mass_nosp)$coef[2,4]
+text(600, 0.9, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(600, 0.9 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(600, 0.9 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(600, 0.35, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(600, 0.35 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(600, 0.35 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(sheet_phylo_test$Mass2_3, sheet_phylo_test$WinFreq, xlab = "Body mass raised to 2/3", ylab = "", pch = 16, col = ifelse(sheet_phylo_test$Mass == sheet_phylo_test$Mass[sheet_phylo_test$Species == "Spotted Porcupinefish"], "gray70", "black"))
+abline(live_pgls_WinFreq_Mass2_3, lwd = 5)
+abline(live_pgls_WinFreq_Mass2_3_nosp, lwd = 5, col = "gray70")
+lambda <- live_pgls_WinFreq_Mass2_3$param[2]
+pseudor2 <- summary(live_pgls_WinFreq_Mass2_3)$r.squared
+pvalue <- summary(live_pgls_WinFreq_Mass2_3)$coef[2,4]
+lambda_nosp <- live_pgls_WinFreq_Mass2_3_nosp$param[2]
+pseudor2_nosp <- summary(live_pgls_WinFreq_Mass2_3_nosp)$r.squared
+pvalue_nosp <- summary(live_pgls_WinFreq_Mass2_3_nosp)$coef[2,4]
+text(58, 0.5, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(58, 0.5 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(58, 0.5 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+text(58, 0.2, cex = 0.8, bquote(lambda == .(spec_dec(lambda_nosp, 3))), col = "gray70", pos = 4)
+text(58, 0.2 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2_nosp, 3))), col = "gray70", pos = 4)
+text(58, 0.2 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue_nosp, 3))), col = "gray70", pos = 4)
+dev.off()
+
+png("/Users/David/Documents/College/2017–18/Winter 2018/FBQ paper/Behav Ecol revisions/Supp_Fig1_video.png", width = 3600, height = 3600, pointsize = 96)
+layout(matrix(c(seq(1,4,1)), nrow=2, ncol=2, byrow=TRUE))
+
+par(mar=c(5, 4, 2, 2))
+plot(scored_phylo_test$Mass, scored_phylo_test$CBI, xlab = "Body mass (g)", ylab = "CBI", main = "Isometric scaling", pch = 16, col = "black")
+title("(a)", line = -1, adj = 0, outer = TRUE)
+title("(b)", line = -1, outer = TRUE)
+title("(c)", line = -20, adj = 0, outer = TRUE)
+title("(d)", line = -20, outer = TRUE)
+abline(video_pgls_CBI_Mass, lwd = 5)
+lambda <- video_pgls_CBI_Mass$param[2]
+pseudor2 <- summary(video_pgls_CBI_Mass)$r.squared
+pvalue <- summary(video_pgls_CBI_Mass)$coef[2,4]
+text(150, 2.5, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(150, 2.3, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(150, 2.05, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(scored_phylo_test$Mass2_3, scored_phylo_test$CBI, xlab = "Body mass raised to 2/3", ylab = "", main = "Allometric scaling", pch = 16, col = "black")
+abline(video_pgls_CBI_Mass2_3, lwd = 5)
+lambda <- video_pgls_CBI_Mass2_3$param[2]
+pseudor2 <- summary(video_pgls_CBI_Mass2_3)$r.squared
+pvalue <- summary(video_pgls_CBI_Mass2_3)$coef[2,4]
+text(25, 2.5, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(25, 2.3, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(25, 2.05, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(scored_phylo_test$Mass, scored_phylo_test$WinFreq, xlab = "Body mass (g)", ylab = "Frequency of winning", pch = 16, col = "black")
+abline(video_pgls_WinFreq_Mass, lwd = 5)
+lambda <- video_pgls_WinFreq_Mass$param[2]
+pseudor2 <- summary(video_pgls_WinFreq_Mass)$r.squared
+pvalue <- summary(video_pgls_WinFreq_Mass)$coef[2,4]
+text(150, 0.55, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(150, 0.55 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(150, 0.55 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+
+par(mar=c(5, 4, 2, 2))
+plot(scored_phylo_test$Mass2_3, scored_phylo_test$WinFreq, xlab = "Body mass raised to 2/3", ylab = "", pch = 16, col = "black")
+abline(video_pgls_WinFreq_Mass2_3, lwd = 5)
+lambda <- video_pgls_WinFreq_Mass2_3$param[2]
+pseudor2 <- summary(video_pgls_WinFreq_Mass2_3)$r.squared
+pvalue <- summary(video_pgls_WinFreq_Mass2_3)$coef[2,4]
+text(25, 0.55, cex = 0.8, bquote(lambda == .(spec_dec(lambda, 3))), pos = 4)
+text(25, 0.55 - 1.2/18, cex = 0.8, bquote(italic(R)^2 == .(spec_dec(pseudor2, 3))), pos = 4)
+text(25, 0.55 - 1.2/8, cex = 0.8, bquote(italic(p) == .(spec_dec(pvalue, 3))), pos = 4)
+dev.off()
+```
+
+Fit Lanchester's laws as well as the body size-only and group size-only models to the live-only and video-only datasets:
+
+```{r}
+live_group <- sheet4[sheet4$Group.A != sheet4$Group.B,]
+video_group <- scored4[scored4$Group.A != scored4$Group.B,]
+
+# Exclude cornetfish:
+live_group <- live_group[live_group$Species.A != "Cornetfish" &
+                         live_group$Species.B != "Cornetfish",]
+
+# Number of data points:
+nrow(live_group)
+nrow(video_group)
+
+# Get body size info and use it to test the four models:
+lanchester_on_frames <- function(dataframe) {
+  n <- ncol(dataframe)
+  dataframe$Group.A <- as.numeric(dataframe$Group.A)
+  dataframe$Group.B <- as.numeric(dataframe$Group.B)
+  for(i in 1:nrow(dataframe)) {
+    dataframe[i, n+1] <- lengthmass$Mass[lengthmass$Species == as.character(dataframe$Species.A[i])]
+    dataframe[i, n+2] <- lengthmass$Mass[lengthmass$Species == as.character(dataframe$Species.B[i])]
+    dataframe[i, n+3] <- lengthmass$Mass2_3[lengthmass$Species == as.character(dataframe$Species.A[i])]
+    dataframe[i, n+4] <- lengthmass$Mass2_3[lengthmass$Species == as.character(dataframe$Species.B[i])]
+    if (dataframe$Group.A[i]*dataframe[i, n+1] > dataframe$Group.B[i]*dataframe[i, n+2]) {
+      dataframe[i, n+5] <- dataframe$Species.A[i] 
+    } else {
+      dataframe[i, n+5] <- dataframe$Species.B[i] 
+    }
+    if ((dataframe$Group.A[i]^2)*dataframe[i, n+1] > (dataframe$Group.B[i]^2)*dataframe[i, n+2]) {
+      dataframe[i, n+6] <- dataframe$Species.A[i] 
+    } else {
+      dataframe[i, n+6] <- dataframe$Species.B[i] 
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+5])) == TRUE) {
+      dataframe[i, n+7] <- 1
+    } else {
+      dataframe[i, n+7] <- 0
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+6])) == TRUE) {
+      dataframe[i, n+8] <- 1
+    } else {
+      dataframe[i, n+8] <- 0
+    }
+    if (dataframe$Group.A[i]*dataframe[i, n+3] > dataframe$Group.B[i]*dataframe[i, n+4]) {
+      dataframe[i, n+9] <- dataframe$Species.A[i] 
+    } else {
+      dataframe[i, n+9] <- dataframe$Species.B[i] 
+    }
+    if ((dataframe$Group.A[i]^2)*dataframe[i, n+3] > (dataframe$Group.B[i]^2)*dataframe[i, n+4]) {
+      dataframe[i, n+10] <- dataframe$Species.A[i] 
+    } else {
+      dataframe[i, n+10] <- dataframe$Species.B[i] 
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+9])) == TRUE) {
+      dataframe[i, n+11] <- 1
+    } else {
+      dataframe[i, n+11] <- 0
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+10])) == TRUE) {
+      dataframe[i, n+12] <- 1
+    } else {
+      dataframe[i, n+12] <- 0
+    }
+    if (dataframe$Group.A[i] > dataframe$Group.B[i]) {
+      dataframe[i, n+13] <- dataframe$Species.A[i]
+    } else {
+      dataframe[i, n+13] <- dataframe$Species.B[i]
+    }
+    if (dataframe[i, n+1] > dataframe[i, n+2]) {
+      dataframe[i, n+14] <- dataframe$Species.A[i] 
+    } else {
+      dataframe[i, n+14] <- dataframe$Species.B[i] 
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+13])) == TRUE) {
+      dataframe[i, n+15] <- 1
+    } else {
+      dataframe[i, n+15] <- 0
+    }
+    if (identical(as.character(dataframe$Winner[i]), as.character(dataframe[i, n+14])) == TRUE) {
+      dataframe[i, n+16] <- 1
+    } else {
+      dataframe[i, n+16] <- 0
+    }
+  }
+  colnames(dataframe)[(n+1):(n+16)] <- c("BodySize.A", "BodySize.B", "BodySize2_3.A",
+                                         "BodySize2_3.B", "Linear.Law.Prediction", 
+                                         "Square.Law.Prediction", "Linear.True",
+                                         "Square.True", "Linear.Law2_3.Prediction",
+                                         "Square.Law2_3.Prediction", "Linear2_3.True",
+                                         "Square2_3.True", "Group.Size.Only.Prediction",
+                                         "Body.Size.Only.Prediction",
+                                         "Group.Size.Only.True", "Body.Size.Only.True")
+  return(dataframe)
+}
+
+live_group <- lanchester_on_frames(live_group)
+video_group <- lanchester_on_frames(video_group)
+
+# Proportion of successful predictions:
+sum(live_group$Linear.True)/nrow(live_group)
+sum(live_group$Square.True)/nrow(live_group)
+sum(live_group$Linear2_3.True)/nrow(live_group)
+sum(live_group$Square2_3.True)/nrow(live_group)
+sum(live_group$Group.Size.Only.True)/nrow(live_group)
+sum(live_group$Body.Size.Only.True)/nrow(live_group)
+
+sum(video_group$Linear.True)/nrow(video_group)
+sum(video_group$Square.True)/nrow(video_group)
+sum(video_group$Linear2_3.True)/nrow(video_group)
+sum(video_group$Square2_3.True)/nrow(video_group)
+sum(video_group$Group.Size.Only.True)/nrow(video_group)
+sum(video_group$Body.Size.Only.True)/nrow(video_group)
+
+# Test significance:
+dbinom(sum(live_group$Linear.True), size = nrow(live_group), prob = 1/2) 
+dbinom(sum(live_group$Square.True), size = nrow(live_group), prob = 1/2)
+dbinom(sum(live_group$Linear2_3.True), size = nrow(live_group), prob = 1/2) 
+dbinom(sum(live_group$Square2_3.True), size = nrow(live_group), prob = 1/2)
+dbinom(sum(live_group$Group.Size.Only.True), size = nrow(live_group), prob = 1/2) 
+dbinom(sum(live_group$Body.Size.Only.True), size = nrow(live_group), prob = 1/2)
+
+dbinom(sum(video_group$Linear.True), size = nrow(video_group), prob = 1/2) 
+dbinom(sum(video_group$Square.True), size = nrow(video_group), prob = 1/2)
+dbinom(sum(video_group$Linear2_3.True), size = nrow(video_group), prob = 1/2) 
+dbinom(sum(video_group$Square2_3.True), size = nrow(video_group), prob = 1/2)
+dbinom(sum(video_group$Group.Size.Only.True), size = nrow(video_group), prob = 1/2) 
+dbinom(sum(video_group$Body.Size.Only.True), size = nrow(video_group), prob = 1/2)
+```
+
+How many interactions involving damselfish do we have in the live-only dataset and how many in the video-only dataset?
+
+```{r}
+nrow(live_group[live_group$Species.A == "Damselfish" | live_group$Species.B == "Damselfish",])/nrow(live_group)
+nrow(video_group[video_group$Species.A == "Damselfish" | video_group$Species.B == "Damselfish",])/nrow(video_group)
 ```
 
 # References
